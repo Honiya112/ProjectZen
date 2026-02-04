@@ -8,6 +8,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.storage.local.set({
       zenEnabled: false,
+      isTracking: false,
       aiModel: 'gemini',
       lastSession: Date.now()
     });
@@ -52,7 +53,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
     return true;
   }
+
+  if (message.type === 'CAMERA_FRAME') {
+    const { frame } = message;
+    if (typeof frame === 'string' && frame.startsWith('data:image/jpeg')) {
+      // Handle frame (e.g. forward to AI, store, or analyze)
+      handleCameraFrame(frame, sender.tab?.id);
+    }
+    sendResponse({ received: true });
+    return false;
+  }
 });
+
+/**
+ * Handle a Base64 JPEG frame from content script (when isTracking is on).
+ */
+function handleCameraFrame(base64DataUrl, tabId) {
+  // Placeholder: log length only; wire to AI/analysis as needed
+  if (base64DataUrl && base64DataUrl.length) {
+    console.log('Project Zen: camera frame received', base64DataUrl.length, 'chars', tabId != null ? `(tab ${tabId})` : '');
+  }
+}
 
 /**
  * AI request handler - integrate with Gemini Live or other AI backend

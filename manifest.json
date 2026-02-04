@@ -3,7 +3,7 @@
   "name": "Project Zen",
   "version": "1.0.0",
   "description": "Adjusts webpage complexity based on your real-time cognitive load using Gemini 3.",
-  "permissions": ["storage", "scripting", "activeTab", "sidePanel"],
+  "permissions": ["storage", "scripting", "activeTab", "sidePanel", "camera"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",

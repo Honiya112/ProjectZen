@@ -5,32 +5,129 @@
 
 /* Applied when body has .zen-mode (set by content.js) */
 html[data-project-zen="on"] body.zen-mode {
-  /* Subtle focus: slightly dimmed background, calmer contrast */
-  background-color: #0c0c0c !important;
+  background-color: #f4f7f6 !important; /* Calming sage/grey tint */
+  transition: all 0.8s ease-in-out;
 }
 
-html[data-project-zen="on"] body.zen-mode * {
-  scrollbar-width: thin;
-  scrollbar-color: #333 transparent;
-}
-
-/* Optional: soften or hide common clutter (customize selectors per site) */
-html[data-project-zen="on"] body.zen-mode [role="banner"],
-html[data-project-zen="on"] body.zen-mode .advertisement,
-html[data-project-zen="on"] body.zen-mode [id*="sidebar"] {
+/* Grayscale and blur everything EXCEPT the main article */
+html[data-project-zen="on"] body.zen-mode > *:not(main):not(article):not(#content) {
+  filter: grayscale(90%) blur(1px);
   opacity: 0.6;
-  transition: opacity 0.2s ease;
+  pointer-events: none; /* Stops user from clicking distracting sidebars */
 }
 
-html[data-project-zen="on"] body.zen-mode [role="banner"]:hover,
-html[data-project-zen="on"] body.zen-mode .advertisement:hover,
-html[data-project-zen="on"] body.zen-mode [id*="sidebar"]:hover {
-  opacity: 1;
+/* Make the text beautiful and readable */
+body.zen-mode p, body.zen-mode h1, body.zen-mode h2 {
+  max-width: 800px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  line-height: 1.8 !important;
+  font-size: 1.1em !important;
+  color: #2c3e50 !important;
+}
+
+/* Hide the junk! */
+body.zen-mode aside, 
+body.zen-mode .ads, 
+body.zen-mode footer {
+  display: none !important;
+}
+
+@keyframes breathe {
+  0% { background-color: #f4f7f6; }
+  50% { background-color: #e8f0fe; } /* Soft blue pulse */
+  100% { background-color: #f4f7f6; }
+}
+
+body.zen-mode {
+  animation: breathe 8s infinite ease-in-out;
+}
+
+/* Target the root and the body to ensure we override the website's styles */
+html.zen-mode-active, 
+html.zen-mode-active body {
+  background-color: #1a1a1a !important; /* Let's use Dark Mode for the test so it's obvious! */
+  filter: sepia(0.2) contrast(0.9) !important;
+  transition: all 0.5s ease !important;
+}
+
+/* Hide EVERYTHING distracting just to prove it works */
+html.zen-mode-active aside, 
+html.zen-mode-active .nav, 
+html.zen-mode-active #mw-panel, /* Wikipedia specific sidebar */
+html.zen-mode-active #p-navigation {
+  display: none !important;
+}
+
+/* Make the text pop */
+html.zen-mode-active p {
+  color: #e0e0e0 !important;
+  font-size: 1.2rem !important;
+  line-height: 1.8 !important;
 }
 
 /* Reduce motion when zen is on (respects user prefs when not overridden) */
 @media (prefers-reduced-motion: no-preference) {
   html[data-project-zen="on"] body.zen-mode {
     scroll-behavior: smooth;
+  }
+}
+
+#zen-prompt-overlay {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000000;
+  font-family: 'Inter', system-ui, sans-serif;
+  animation: slideIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.zen-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px); /* The "Glass" look */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 24px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  width: 300px;
+  text-align: center;
+}
+
+.zen-icon { font-size: 32px; margin-bottom: 10px; }
+.zen-card h3 { margin: 0 0 8px; color: #1d1d1f; font-size: 18px; }
+.zen-card p { margin: 0 0 20px; color: #424245; font-size: 14px; line-height: 1.4; }
+
+.zen-actions { display: flex; gap: 12px; }
+
+#zen-yes {
+  background: #0071e3;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  flex: 1;
+  font-weight: 600;
+  transition: transform 0.2s;
+}
+
+#zen-no {
+  background: rgba(0,0,0,0.05);
+  color: #1d1d1f;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  flex: 1;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
