@@ -1,0 +1,136 @@
+/* Project Zen - Popup: modern minimalist toggle */
+
+:root {
+  --zen-bg: #0f0f0f;
+  --zen-surface: #1a1a1a;
+  --zen-border: #2a2a2a;
+  --zen-text: #e8e8e8;
+  --zen-muted: #888;
+  --zen-accent: #4a9b7a;
+  --zen-accent-hover: #5bb88a;
+  --zen-radius: 12px;
+  --zen-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --zen-width: 280px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: var(--zen-width);
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--zen-text);
+  background: var(--zen-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.zen-popup {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.zen-header {
+  text-align: center;
+}
+
+.zen-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.zen-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--zen-muted);
+  font-weight: 400;
+}
+
+.zen-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--zen-surface);
+  border: 1px solid var(--zen-border);
+  border-radius: var(--zen-radius);
+  box-shadow: var(--zen-shadow);
+}
+
+/* Toggle switch */
+.zen-toggle {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.zen-switch {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.zen-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--zen-border);
+  border-radius: 26px;
+  transition: background 0.2s ease;
+}
+
+.zen-slider::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--zen-text);
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.zen-switch:checked + .zen-slider {
+  background: var(--zen-accent);
+}
+
+.zen-switch:checked + .zen-slider::before {
+  transform: translateX(22px);
+}
+
+.zen-switch:focus-visible + .zen-slider {
+  outline: 2px solid var(--zen-accent);
+  outline-offset: 2px;
+}
+
+.zen-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--zen-muted);
+  min-width: 28px;
+}
+
+.zen-label.on {
+  color: var(--zen-accent);
+}
+
+.zen-footer {
+  text-align: center;
+}
+
+.zen-hint {
+  font-size: 0.75rem;
+  color: var(--zen-muted);
+}

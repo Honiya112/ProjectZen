@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Project Zen</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="zen-popup">
+    <header class="zen-header">
+      <h1 class="zen-title">Project Zen</h1>
+      <p class="zen-subtitle">Focus mode</p>
+    </header>
+    <section class="zen-control">
+      <label class="zen-toggle" for="zen-switch" aria-label="Toggle zen mode">
+        <input type="checkbox" id="zen-switch" class="zen-switch" />
+        <span class="zen-slider"></span>
+      </label>
+      <span class="zen-label" id="zen-status">Off</span>
+    </section>
+    <footer class="zen-footer">
+      <span class="zen-hint">Toggle to reduce clutter and focus</span>
+    </footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

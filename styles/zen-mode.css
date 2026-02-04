@@ -1,0 +1,36 @@
+/**
+ * Project Zen - Zen mode styles
+ * Injected when zen mode is enabled; reduce visual clutter and focus content.
+ */
+
+/* Applied when body has .zen-mode (set by content.js) */
+html[data-project-zen="on"] body.zen-mode {
+  /* Subtle focus: slightly dimmed background, calmer contrast */
+  background-color: #0c0c0c !important;
+}
+
+html[data-project-zen="on"] body.zen-mode * {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+/* Optional: soften or hide common clutter (customize selectors per site) */
+html[data-project-zen="on"] body.zen-mode [role="banner"],
+html[data-project-zen="on"] body.zen-mode .advertisement,
+html[data-project-zen="on"] body.zen-mode [id*="sidebar"] {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+html[data-project-zen="on"] body.zen-mode [role="banner"]:hover,
+html[data-project-zen="on"] body.zen-mode .advertisement:hover,
+html[data-project-zen="on"] body.zen-mode [id*="sidebar"]:hover {
+  opacity: 1;
+}
+
+/* Reduce motion when zen is on (respects user prefs when not overridden) */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-project-zen="on"] body.zen-mode {
+    scroll-behavior: smooth;
+  }
+}

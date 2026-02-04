@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Project Zen",
+  "version": "1.0.0",
+  "description": "Adjusts webpage complexity based on your real-time cognitive load using Gemini 3.",
+  "permissions": ["storage", "scripting", "activeTab", "sidePanel"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles/zen-mode.css"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/gemini-live.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Project Zen"
+  }
+}
