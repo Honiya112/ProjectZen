@@ -195,6 +195,82 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
+/**
+ * SCRAPER & SCROLL LOGIC
+ * 1. Grabs real text from the page.
+ * 2. Injects the Zen View.
+ * 3. Watches scrolling to highlight the active paragraph.
+ */
+function activateZenModeWithRealData() {
+  // 1. SCRAPE: Find the biggest text container (simple heuristic for Hackathon)
+  // We look for all <p> tags, filter out short ones (nav links), and take the top 15.
+  const allParagraphs = Array.from(document.querySelectorAll('p, article p'))
+    .filter(p => p.innerText.length > 60) // Ignore short menu items
+    .slice(0, 15) // Limit to 15 paragraphs for the demo
+    .map(p => p.innerText);
+
+  // If no text found, fallback to dummy
+  if (allParagraphs.length === 0) {
+    allParagraphs.push("Could not find main article text. Try a news article or Wikipedia page!");
+  }
+
+  // 2. BUILD: Create the Zen Overlay
+  const existing = document.getElementById('zen-reader-view');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'zen-reader-view';
+
+  const column = document.createElement('div');
+  column.className = 'zen-reader-column';
+
+  // The AI Briefing (Static for now, but ready for API data)
+  const summaryCard = document.createElement('div');
+  summaryCard.className = 'summary-card';
+  summaryCard.innerHTML = `
+    <span class="summary-badge"></span>
+    <p class="summary-content">
+      This is a live extraction of the current page. The content below is the actual text from the website, cleaned and refocused for your cognitive ease.
+    </p>
+  `;
+  column.appendChild(summaryCard);
+
+  // The Title (Grab real title)
+  const title = document.createElement('h1');
+  title.innerText = document.title.split('-')[0] || "Zen Mode Article";
+  column.appendChild(title);
+
+  // 3. INJECT: Add real paragraphs
+  allParagraphs.forEach((text) => {
+    const p = document.createElement('p');
+    p.innerText = text;
+    column.appendChild(p);
+  });
+
+  overlay.appendChild(column);
+  document.body.appendChild(overlay);
+
+  // 4. OBSERVE: The "Scroll Focus" Magic
+  // We create a "zone" in the middle of the screen (-40% top, -40% bottom).
+  // Whatever enters this thin strip gets the 'focus-paragraph' class.
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('focus-paragraph');
+      } else {
+        entry.target.classList.remove('focus-paragraph');
+      }
+    });
+  }, {
+    root: overlay,           // Watch scrolling inside the overlay
+    rootMargin: "-45% 0px -45% 0px", // The "Hot Zone" is only the center 10% of screen
+    threshold: 0
+  });
+
+  // Tell observer to watch all new p tags
+  column.querySelectorAll('p').forEach(p => observer.observe(p));
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
