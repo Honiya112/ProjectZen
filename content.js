@@ -200,79 +200,99 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 /**
- * SCRAPER & SCROLL LOGIC
- * 1. Grabs real text from the page.
- * 2. Injects the Zen View.
- * 3. Watches scrolling to highlight the active paragraph.
+ * ZEN MODE v5: Adaptive Colors & Magnifying Focus
  */
 function activateZenModeWithRealData() {
-  // 1. SCRAPE: Find the biggest text container (simple heuristic for Hackathon)
-  // We look for all <p> tags, filter out short ones (nav links), and take the top 15.
-  const allParagraphs = Array.from(document.querySelectorAll('p, article p'))
-    .filter(p => p.innerText.length > 60) // Ignore short menu items
-    .slice(0, 15) // Limit to 15 paragraphs for the demo
-    .map(p => p.innerText);
-
-  // If no text found, fallback to dummy
-  if (allParagraphs.length === 0) {
-    allParagraphs.push("Could not find main article text. Try a news article or Wikipedia page!");
+  // 1. EXTRACT COLORS (Simple Heuristic)
+  // We grab the computed background color of the body or header
+  let primaryColor = window.getComputedStyle(document.body).backgroundColor;
+  // If transparent/white, try to find a header color
+  if (primaryColor === 'rgba(0, 0, 0, 0)' || primaryColor === 'rgb(255, 255, 255)') {
+    const header = document.querySelector('header, nav, .navbar');
+    if (header) primaryColor = window.getComputedStyle(header).backgroundColor;
+  }
+  // If still boring, fallback to a soft "Smart Grey" (Zen default)
+  if (!primaryColor || primaryColor === 'rgb(255, 255, 255)') {
+    primaryColor = 'rgba(226, 232, 240, 0.6)'; // Slate-200
   }
 
-  // 2. BUILD: Create the Zen Overlay
-  const existing = document.getElementById('zen-reader-view');
-  if (existing) existing.remove();
+  // 2. SCRAPE CONTENT
+  const articleRoot = document.querySelector('#mw-content-text .mw-parser-output') || 
+                      document.querySelector('article') || 
+                      document.querySelector('main') || 
+                      document.querySelector('#content') || 
+                      document.body;
 
   const overlay = document.createElement('div');
   overlay.id = 'zen-reader-view';
+  
+  // INJECT DYNAMIC COLORS
+  // We set CSS variables on the overlay to match the site's vibe
+  overlay.style.setProperty('--zen-bg-1', primaryColor);
+  // Complementary color (just dim the primary slightly for the second orb)
+  overlay.style.setProperty('--zen-bg-2', primaryColor.replace('rgb', 'rgba').replace(')', ', 0.5)'));
 
   const column = document.createElement('div');
   column.className = 'zen-reader-column';
 
-  // The AI Briefing (Static for now, but ready for API data)
-  const summaryCard = document.createElement('div');
-  summaryCard.className = 'summary-card';
-  summaryCard.innerHTML = `
-    <span class="summary-badge"></span>
-    <p class="summary-content">
-      This is a live extraction of the current page. The content below is the actual text from the website, cleaned and refocused for your cognitive ease.
-    </p>
+  // AI Briefing
+  column.innerHTML = `
+    <div class="summary-card">
+      <p class="summary-content">✨ <b>AI Briefing:</b> Environment adapted to page context. Focus magnifier active.</p>
+    </div>
+    <h1>${document.title.split('-')[0].trim()}</h1>
   `;
-  column.appendChild(summaryCard);
 
-  // The Title (Grab real title)
-  const title = document.createElement('h1');
-  title.innerText = document.title.split('-')[0] || "Zen Mode Article";
-  column.appendChild(title);
+  // 3. INTELLIGENT CLONING (Preserve Blocks)
+  Array.from(articleRoot.children).forEach(node => {
+    // Filter junk
+    if (['NAV', 'HEADER', 'FOOTER', 'ASIDE', 'FORM', 'SCRIPT', 'STYLE'].includes(node.tagName)) return;
+    if (node.classList.contains('mw-editsection') || node.classList.contains('toc')) return;
+    if (['UL', 'OL'].includes(node.tagName) && node.querySelectorAll('a').length > 5 && node.innerText.length < 200) return;
 
-  // 3. INJECT: Add real paragraphs
-  allParagraphs.forEach((text) => {
-    const p = document.createElement('p');
-    p.innerText = text;
-    column.appendChild(p);
+    // Filter for content
+    let isContent = false;
+    if (['H1','H2','H3','H4'].includes(node.tagName)) isContent = true;
+    if (['P','BLOCKQUOTE','FIGURE','UL','OL'].includes(node.tagName) && node.innerText.trim().length > 20) isContent = true;
+    if (node.tagName === 'P' && node.querySelector('img')) isContent = true;
+
+    if (isContent) {
+      const clone = node.cloneNode(true);
+      // Clean attributes
+      const cleaner = (el) => {
+        el.removeAttribute('class'); el.removeAttribute('id'); el.removeAttribute('style');
+        if(el.tagName !== 'IMG') { el.removeAttribute('width'); el.removeAttribute('height'); }
+        if (el.tagName === 'A') el.target = "_blank";
+      };
+      cleaner(clone);
+      clone.querySelectorAll('*').forEach(cleaner);
+      
+      // Fix images
+      clone.querySelectorAll('img').forEach(img => {
+         if (!img.src.startsWith('http')) img.src = img.src; 
+      });
+
+      column.appendChild(clone);
+    }
   });
 
   overlay.appendChild(column);
   document.body.appendChild(overlay);
 
-  // 4. OBSERVE: The "Scroll Focus" Magic
-  // We create a "zone" in the middle of the screen (-40% top, -40% bottom).
-  // Whatever enters this thin strip gets the 'focus-paragraph' class.
+  // 4. ATTACH OBSERVER (The Magnifying Logic)
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('focus-paragraph');
-      } else {
-        entry.target.classList.remove('focus-paragraph');
-      }
+      // Toggle the 'focus-paragraph' class which now triggers the POP OUT effect
+      if (entry.isIntersecting) entry.target.classList.add('focus-paragraph');
+      else entry.target.classList.remove('focus-paragraph');
     });
-  }, {
-    root: overlay,           // Watch scrolling inside the overlay
-    rootMargin: "-45% 0px -45% 0px", // The "Hot Zone" is only the center 10% of screen
-    threshold: 0
+  }, { 
+    root: overlay, 
+    rootMargin: "-45% 0px -45% 0px", // Strict center focus
+    threshold: 0 
   });
 
-  // Tell observer to watch all new p tags
-  column.querySelectorAll('p').forEach(p => observer.observe(p));
+  column.querySelectorAll('p, h2, h3, li, blockquote').forEach(el => observer.observe(el));
 }
 
 // Initialize when DOM is ready
