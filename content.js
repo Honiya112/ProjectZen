@@ -33,21 +33,25 @@ function createCameraElements() {
 }
 
 function captureFrameToBase64() {
-  // SAFETY CHECK: videoEl must exist, be playing, and have actual pixel data (readyState 2+)
   if (!videoEl || videoEl.paused || videoEl.ended || videoEl.readyState < 2) {
     return null;
   }
   
-  const w = videoEl.videoWidth;
-  const h = videoEl.videoHeight;
-  if (w === 0 || h === 0) return null; // Avoid empty frames
+  // OPTIMIZATION: Downscale to 320px width to save AI tokens/latency
+  // 320px is plenty for Gemini to see facial expressions.
+  const scale = 320 / videoEl.videoWidth;
+  const w = 320;
+  const h = videoEl.videoHeight * scale;
 
   canvasEl.width = w;
   canvasEl.height = h;
   const ctx = canvasEl.getContext('2d');
-  ctx.drawImage(videoEl, 0, 0);
   
-  return canvasEl.toDataURL('image/jpeg', 0.5); // Lower quality = faster speed for AI
+  // Draw the small version
+  ctx.drawImage(videoEl, 0, 0, w, h);
+  
+  // Compress to JPEG 60% quality
+  return canvasEl.toDataURL('image/jpeg', 0.6); 
 }
 
 function startCameraCapture() {
