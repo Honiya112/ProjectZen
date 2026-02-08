@@ -34,33 +34,44 @@ export function createSummaryCard(text = "Environment optimized. Focus magnifier
  * 3. THE CONTENT: Cleans and prepares text/images for the Glass View
  */
 export function createGlassBlock(originalNode) {
-  // Clone the node to avoid breaking the original site
-  const clone = originalNode.cloneNode(true);
+  // A. IMAGE HANDLING (Protect images from being crushed)
+  // Check if the node IS an image or CONTAINS an image
+  const img = originalNode.tagName === 'IMG' ? originalNode : originalNode.querySelector('img');
+  
+  if (img) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'zen-media-wrapper'; // New class for CSS
+    
+    const newImg = document.createElement('img');
+    newImg.src = img.src.startsWith('http') ? img.src : img.src; // Keep src safe
+    
+    // Copy caption if it exists (figcaption or nearby text)
+    const captionText = originalNode.innerText.trim();
+    if (captionText && captionText.length > 0 && captionText.length < 100) {
+        const caption = document.createElement('div');
+        caption.className = 'zen-caption';
+        caption.innerText = captionText;
+        wrapper.appendChild(newImg);
+        wrapper.appendChild(caption);
+    } else {
+        wrapper.appendChild(newImg);
+    }
+    return wrapper;
+  }
 
-  // CLEANUP: Strip all classes, IDs, and styles to let our CSS take over
+  // B. TEXT HANDLING (Standard Logic)
+  const clone = originalNode.cloneNode(true);
+  
+  // Cleaner function
   const cleaner = (el) => {
     el.removeAttribute('class');
     el.removeAttribute('id');
     el.removeAttribute('style');
-    // Keep image dimensions for aspect ratio, strip for everything else
-    if (el.tagName !== 'IMG') {
-      el.removeAttribute('width');
-      el.removeAttribute('height');
-    }
-    // Force links to new tab
     if (el.tagName === 'A') el.target = "_blank";
   };
 
   cleaner(clone);
   clone.querySelectorAll('*').forEach(cleaner);
-
-  // Fix Relative Image URLs
-  clone.querySelectorAll('img').forEach(img => {
-    if (!img.src.startsWith('http')) img.src = img.src; 
-  });
-  if (clone.tagName === 'IMG' && !clone.src.startsWith('http')) {
-    clone.src = originalNode.src;
-  }
-
+  
   return clone;
 }
