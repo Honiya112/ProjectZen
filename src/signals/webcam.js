@@ -1,17 +1,16 @@
 /**
  * Project Zen - Webcam signal
- * Camera capture & 320px downsampling; sends base64 JPEG to background for AI.
+ * Camera stream management. Captures frame ON-DEMAND (when threshold breached).
+ * Frame is downsampled to 320px for efficiency.
  */
 
 (function () {
-  const CAPTURE_INTERVAL_MS = 3000;
   const TARGET_WIDTH = 320;
   const JPEG_QUALITY = 0.6;
 
   let videoEl = null;
   let canvasEl = null;
   let stream = null;
-  let captureTimerId = null;
   let isTracking = false;
 
   function createCameraElements() {
@@ -31,8 +30,15 @@
     (document.body || document.documentElement).appendChild(wrap);
   }
 
-  function captureFrameToBase64() {
-    if (!videoEl || videoEl.paused || videoEl.ended || videoEl.readyState < 2) return null;
+  /**
+   * Capture a single frame at 320px and return as base64 JPEG.
+   * Called ON-DEMAND when threshold is breached.
+   */
+  function captureFrameNow() {
+    if (!videoEl || videoEl.paused || videoEl.ended || videoEl.readyState < 2) {
+      console.warn('Project Zen Webcam: Video not ready to capture.');
+      return null;
+    }
     const scale = TARGET_WIDTH / videoEl.videoWidth;
     const w = TARGET_WIDTH;
     const h = videoEl.videoHeight * scale;
@@ -40,35 +46,16 @@
     canvasEl.height = h;
     const ctx = canvasEl.getContext('2d');
     ctx.drawImage(videoEl, 0, 0, w, h);
-    return canvasEl.toDataURL('image/jpeg', JPEG_QUALITY);
-  }
-
-  function startCaptureLoop() {
-    if (captureTimerId) clearInterval(captureTimerId);
-    captureTimerId = setInterval(function () {
-      if (!isTracking) {
-        window.projectZenWebcam && window.projectZenWebcam.stop();
-        return;
-      }
-      const base64 = captureFrameToBase64();
-      if (base64 && typeof chrome !== 'undefined' && chrome.runtime) {
-        chrome.runtime.sendMessage({ type: 'CAMERA_FRAME', frame: base64 });
-      }
-    }, CAPTURE_INTERVAL_MS);
-  }
-
-  function stopCaptureLoop() {
-    if (captureTimerId) {
-      clearInterval(captureTimerId);
-      captureTimerId = null;
-    }
+    const base64 = canvasEl.toDataURL('image/jpeg', JPEG_QUALITY);
+    console.log(`📸 Frame captured on-demand: ${base64.length} chars (320px)`);
+    return base64;
   }
 
   function start() {
     if (!isTracking) return;
     createCameraElements();
     if (stream) {
-      startCaptureLoop();
+      console.log('📹 Camera stream already active.');
       return;
     }
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -81,7 +68,7 @@
         videoEl.srcObject = stream;
         videoEl.onloadedmetadata = function () {
           videoEl.play().catch(function () {});
-          startCaptureLoop();
+          console.log('📹 Camera stream initialized. Ready for on-demand capture.');
         };
       })
       .catch(function (err) {
@@ -92,12 +79,12 @@
   }
 
   function stop() {
-    stopCaptureLoop();
     if (stream) {
       stream.getTracks().forEach(function (t) { t.stop(); });
       stream = null;
     }
     if (videoEl && videoEl.srcObject) videoEl.srcObject = null;
+    console.log('📹 Camera stream stopped.');
   }
 
   function setTracking(enabled) {
@@ -111,7 +98,7 @@
       start,
       stop,
       setTracking,
-      captureFrameToBase64,
+      captureFrameNow,
     };
   }
 })();

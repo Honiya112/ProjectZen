@@ -13,10 +13,6 @@ const GEMINI_API_KEY =
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com';
 const GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
-// Throttle how often we call Gemini (camera sends a frame every 3s)
-const ANALYSIS_INTERVAL_MS = 12000; // 12s between calls per extension
-let lastAnalysisTs = 0;
-
 // Extension install/update
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
@@ -77,7 +73,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 5. THRESHOLD BREACH DETECTED (Enriched context from content script)
+  // 5. THRESHOLD BREACH DETECTED (Enriched context + camera frame)
   if (message.type === 'THRESHOLD_BREACH') {
     const { payload } = message;
     console.log('🚨 Threshold breach received from tab:', sender.tab?.id);
@@ -85,56 +81,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ received: true });
     return true;
   }
-
-  // 6. RECEIVE CAMERA FRAMES (The Bridge to AI)
-  if (message.type === 'CAMERA_FRAME') {
-    const { frame } = message;
-    if (typeof frame === 'string' && frame.startsWith('data:image/jpeg')) {
-      handleCameraFrame(frame, sender.tab?.id ?? null);
-    }
-    sendResponse({ received: true });
-    return false; // No async response needed for frame stream
-  }
 });
 
 /**
  * THRESHOLD BREACH HANDLER
- * Stores breach context from content script. Will be paired with next camera frame for Gemini.
+ * Receives enriched context (behavioral state + UI snapshot + camera frame) from content script.
+ * Sends everything to Gemini for smart adaptation decision.
  */
 let pendingThresholdBreach = null;
 
 async function handleThresholdBreach(breachData, tabId) {
-  console.log('📊 Storing threshold breach context:', {
+  console.log('🚨 Threshold breach received from tab:', tabId);
+  console.log('📊 Breach context:', {
     score: breachData.score,
     focusedElement: breachData.focusedElementId,
+    hasFrame: !!breachData.cameraFrame,
     timestamp: breachData.timestamp,
   });
 
-  // Store the breach context — will be sent with next camera frame
-  pendingThresholdBreach = {
-    ...breachData,
-    tabId,
-    timestamp: breachData.timestamp || Date.now(),
-  };
-}
-
-/**
- * THE AI PROCESSING HUB
- * Send frames to Gemini to check for cognitive load.
- */
-async function handleCameraFrame(base64Image, tabId) {
-  if (!tabId) return;
-
-  // Throttle calls so we don't spam the API
-  const now = Date.now();
-  if (now - lastAnalysisTs < ANALYSIS_INTERVAL_MS) {
+  if (!breachData.cameraFrame) {
+    console.warn('⚠️ No camera frame captured. Skipping Gemini analysis.');
     return;
   }
-  lastAnalysisTs = now;
-
-  console.log(
-    `📸 Frame received from Tab ${tabId}. Size: ${base64Image.length} chars`
-  );
 
   if (!GEMINI_API_KEY) {
     console.warn(
@@ -144,39 +112,54 @@ async function handleCameraFrame(base64Image, tabId) {
   }
 
   try {
-    const stressed = await analyzeCognitiveLoadWithGemini(base64Image);
+    // Send enriched context to Gemini
+    const result = await analyzeWithEnrichedContext(
+      breachData.cameraFrame,
+      breachData
+    );
 
-    if (stressed) {
-      console.log('⚠️ Cognitive load detected. Prompting Zen Mode UI.');
-      chrome.tabs.sendMessage(tabId, { type: 'SHOW_ZEN_PROMPT' }, () => {
-        // Ignore errors when tab is gone or content script not ready
-        void chrome.runtime.lastError;
-      });
+    if (result && result.stressed) {
+      console.log('⚠️ Cognitive load confirmed by Gemini. Prompting Zen Mode UI.');
+      chrome.tabs.sendMessage(
+        tabId,
+        {
+          type: 'SHOW_ZEN_PROMPT',
+          adaptations: result.adaptations || [],
+        },
+        () => {
+          void chrome.runtime.lastError;
+        }
+      );
     } else {
-      console.log('🙂 No cognitive overload detected for this frame.');
+      console.log('🙂 No cognitive overload confirmed by Gemini.');
     }
   } catch (error) {
-    console.error('AI Error while analyzing frame:', error);
+    console.error('Error analyzing threshold breach:', error);
   }
 }
 
 /**
- * Call Gemini 2.0 Flash with an image and get a simple YES/NO answer
- * on whether the person appears cognitively overloaded / stressed.
- * @param {string} dataUrl - data:image/jpeg;base64,...
- * @returns {Promise<boolean>} true if stressed / overloaded
+ * Call Gemini with enriched context: camera frame + behavioral signals + UI snapshot.
+ * Returns stress decision and suggested adaptations.
  */
-async function analyzeCognitiveLoadWithGemini(dataUrl) {
-  // Strip `data:image/jpeg;base64,`
-  const commaIdx = dataUrl.indexOf(',');
-  const base64Data = commaIdx !== -1 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+async function analyzeWithEnrichedContext(base64Image, breachData) {
+  const commaIdx = base64Image.indexOf(',');
+  const base64Data = commaIdx !== -1 ? base64Image.slice(commaIdx + 1) : base64Image;
+
+  // Prepare enriched prompt with context
+  const prompt =
+    `You are an AI analyzing a user's cognitive load. Using this image and contextual data, decide:
+1. If the person appears stressed/overloaded
+2. What UI adaptations would help
+
+CONTEXT:
+- Stress Score: ${(breachData.score * 100).toFixed(0)}%
+- Focused Element: ${breachData.focusedElementId || 'unknown'}
+- Behavioral Factors: ${JSON.stringify(breachData.factors || {})}
+
+ANSWER with EXACTLY one word: YES if they appear stressed, otherwise NO.`;
 
   const url = `${GEMINI_ENDPOINT}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
-  const prompt =
-    'You are monitoring a person using their webcam. ' +
-    'From this single image, decide if they appear to be under high cognitive load, stressed, or overwhelmed. ' +
-    'Answer EXACTLY one word: YES if they appear significantly stressed or overloaded, otherwise NO.';
 
   const body = {
     contents: [
@@ -194,8 +177,8 @@ async function analyzeCognitiveLoadWithGemini(dataUrl) {
       },
     ],
     generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 8,
+      temperature: 0.2,
+      maxOutputTokens: 16,
     },
   };
 
@@ -219,12 +202,18 @@ async function analyzeCognitiveLoadWithGemini(dataUrl) {
     '';
 
   if (!answer) {
-    console.warn('Gemini returned no text response for cognitive load check.');
-    return false;
+    console.warn('Gemini returned no text response.');
+    return { stressed: false };
   }
 
   const normalized = String(answer).trim().toUpperCase();
-  return normalized.startsWith('Y'); // treat YES / Yes / yes as stressed
+  const stressed = normalized.startsWith('Y');
+
+  return {
+    stressed,
+    text: answer,
+    adaptations: [], // Can be extended with semantic adaptations from Gemini
+  };
 }
 
 /**

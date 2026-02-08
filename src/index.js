@@ -37,12 +37,18 @@
 
   /**
    * Callback when threshold breach is confirmed.
-   * Send enriched context to background for Gemini analysis.
+   * Capture frame immediately and send enriched context to background for Gemini analysis.
    */
   function onThresholdBreached(loadData) {
-    console.log('🚨 Threshold breach detected. Sending to background for Gemini analysis.');
+    console.log('🚨 Threshold breach detected. Capturing frame and sending to background for Gemini analysis.');
     const behavioralState = getBehavioralState();
     const focusedElementId = behavioralState && behavioralState.focusedElementId;
+
+    // Capture frame immediately
+    let cameraFrame = null;
+    if (window.projectZenWebcam && window.projectZenWebcam.captureFrameNow) {
+      cameraFrame = window.projectZenWebcam.captureFrameNow();
+    }
 
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage({
@@ -53,13 +59,14 @@
           focusedElementId,
           idsInViewport: behavioralState && behavioralState.idsInViewport,
           uiSnapshot,
+          cameraFrame,
           timestamp: Date.now(),
         },
       }, function (response) {
         if (chrome.runtime.lastError) {
           console.error('Failed to send threshold breach:', chrome.runtime.lastError);
         } else {
-          console.log('✅ Threshold breach sent to background.');
+          console.log('✅ Threshold breach + camera frame sent to background.');
         }
       });
     }
