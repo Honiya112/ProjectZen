@@ -146,16 +146,25 @@ async function handleThresholdBreach(breachData, tabId) {
 }
 
 /**
- * Format behavioral factors into human-readable text for Gemini prompt.
+ * Format per-element stress contributions into readable summary for Gemini.
  */
-function formatBehavioralFactors(factors) {
-  const descriptions = [];
-  if (factors.pause) descriptions.push(`Pause: ${(factors.pause * 100).toFixed(0)}%`);
-  if (factors.scrollEntropy) descriptions.push(`Scroll Entropy: ${(factors.scrollEntropy * 100).toFixed(0)}%`);
-  if (factors.regressions) descriptions.push(`Regressions: ${(factors.regressions * 100).toFixed(0)}%`);
-  if (factors.interactionLatency) descriptions.push(`Interaction Latency: ${(factors.interactionLatency * 100).toFixed(0)}%`);
-  if (factors.dwellStuck) descriptions.push(`Dwell Stuck: ${(factors.dwellStuck * 100).toFixed(0)}%`);
-  return descriptions.length > 0 ? descriptions.join('; ') : 'No behavioral signals';
+function formatPerElementStress(perElementStress, uiSnapshot) {
+  if (!perElementStress || Object.keys(perElementStress).length === 0) {
+    return 'No per-element stress data available.';
+  }
+  
+  // Get top stress contributors
+  const entries = Object.entries(perElementStress)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5); // Top 5 elements
+  
+  const descriptions = entries.map(([elementId, stress]) => {
+    const element = uiSnapshot?.elements?.find(el => el.id === elementId);
+    const preview = element?.textPreview ? ` "${element.textPreview}"` : '';
+    return `${elementId}${preview}: ${(stress * 100).toFixed(0)}%`;
+  });
+  
+  return descriptions.length > 0 ? descriptions.join('; ') : 'No high-stress elements';
 }
 
 /**
@@ -204,6 +213,11 @@ async function analyzeWithEnrichedContext(base64Image, breachData) {
     `${formatUISnapshot(breachData.uiSnapshot)}` : 
     'No UI elements tracked.';
 
+  // Format per-element stress contributions
+  const elementStressInfo = breachData.perElementStress ? 
+    `Elements contributing most to stress:\n${formatPerElementStress(breachData.perElementStress, breachData.uiSnapshot)}` :
+    'No per-element stress data available.';
+
   // Prepare comprehensive prompt for Gemini to decide on adaptations
   const prompt = `You are an AI assistant helping decide whether a user interface should adapt to reduce interaction friction and visual complexity.
 
@@ -218,7 +232,12 @@ INPUT CONTEXT:
 BEHAVIORAL SIGNALS (primary evidence):
 - Cognitive Load Score: ${(breachData.score * 100).toFixed(0)}%
 - Signal Contributors: ${formatBehavioralFactors(breachData.factors || {})}
+- Stress Trend: ${breachData.trend || 'unknown'} (increasing/steady/decreasing)
+- Average Stress Level: ${breachData.averageStress ? (breachData.averageStress * 100).toFixed(0) + '%' : 'unknown'}
 - Persistence Duration: ${breachData.persistenceSec || 'unknown'} seconds
+
+HIGH-STRESS ELEMENTS:
+${elementStressInfo}
 
 FOCUSED UI CONTEXT:
 - Focused Element ID: ${breachData.focusedElementId || 'unknown'}
