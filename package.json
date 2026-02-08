@@ -2,5 +2,14 @@
   "name": "project-zen",
   "version": "1.0.0",
   "description": "Adjusts webpage complexity based on real-time cognitive load using Gemini.",
-  "private": true
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "dotenv": "^16.6.1",
+    "vite": "^7.3.1"
+  }
 }

@@ -34,7 +34,7 @@
         window.projectZenSignals.resetSignals();
       }
       
-      console.log('📋 Initial UI snapshot created:', (uiSnapshot && uiSnapshot.elements && uiSnapshot.elements.length) || 0, 'elements');
+      console.log('[ProjectZen] 📋 Initial UI snapshot created:', (uiSnapshot && uiSnapshot.elements && uiSnapshot.elements.length) || 0, 'elements');
     }
   }
 
@@ -52,7 +52,7 @@
         remapSignalsToNewElements(lastUISnapshot, uiSnapshot);
       }
       
-      console.log('📄 UI snapshot updated (signals preserved):', (uiSnapshot && uiSnapshot.elements && uiSnapshot.elements.length) || 0, 'elements');
+      console.log('[ProjectZen] 📄 UI snapshot updated (signals preserved):', (uiSnapshot && uiSnapshot.elements && uiSnapshot.elements.length) || 0, 'elements');
     }
   }
 
@@ -90,7 +90,7 @@
       S.lastClickedElementId = mapping[S.lastClickedElementId];
     }
     
-    console.log('🔄 Signals re-mapped to new element IDs. Preserved dwell times:', Object.keys(newDwell).length, 'elements');
+    console.log('[ProjectZen] 🔄 Signals re-mapped to new element IDs. Preserved dwell times:', Object.keys(newDwell).length, 'elements');
   }
 
   /**
@@ -148,7 +148,7 @@
   function debouncedRefreshUISnapshot() {
     if (mutationDebounceTimer) clearTimeout(mutationDebounceTimer);
     mutationDebounceTimer = setTimeout(() => {
-      console.log('📄 DOM changes detected. Updating UI snapshot (preserving signals)...');
+      console.log('[ProjectZen] 📄 DOM changes detected. Updating UI snapshot (preserving signals)...');
       refreshUISnapshot();
     }, DOM_CHANGE_DEBOUNCE_MS);
   }
@@ -182,7 +182,7 @@
 
     const rootNode = document.body || document.documentElement;
     mutationObserver.observe(rootNode, config);
-    console.log('📡 MutationObserver activated. Watching for DOM changes (signals will be preserved).');
+    console.log('[ProjectZen] 📡 MutationObserver activated. Watching for DOM changes (signals will be preserved).');
   }
 
   /**
@@ -201,10 +201,15 @@
 
   function startBehavioralTracking() {
     var S = window.projectZenSignals;
-    if (!S) return;
+    if (!S) {
+      console.warn('[ProjectZen] Signals API not available');
+      return;
+    }
+    console.log('[ProjectZen] Starting behavioral tracking: scroll, clicks, dwell');
     if (S.startScroll) S.startScroll();
     if (S.startClicks) S.startClicks();
     if (S.startDwell) S.startDwell();
+    console.log('[ProjectZen] Behavioral tracking started');
   }
 
   function stopBehavioralTracking() {
@@ -220,8 +225,8 @@
    * Capture frame immediately and send enriched context to background for Gemini analysis.
    */
   function onThresholdBreached(loadData) {
-    console.log('🚨 Threshold breach detected. Capturing frame and sending to background for Gemini analysis.');
-    console.log('📊 Stress trend:', loadData.trend, 'Average stress:', loadData.averageStress?.toFixed(2));
+    console.log('[ProjectZen] 🚨 Threshold breach detected. Capturing frame and sending to background for Gemini analysis.');
+    console.log('[ProjectZen] 📊 Stress trend:', loadData.trend, 'Average stress:', loadData.averageStress?.toFixed(2));
     const behavioralState = getBehavioralState();
     const focusedElementId = behavioralState && behavioralState.focusedElementId;
 
@@ -249,9 +254,9 @@
         },
       }, function (response) {
         if (chrome.runtime.lastError) {
-          console.error('Failed to send threshold breach:', chrome.runtime.lastError);
+          console.error('[ProjectZen:Error] Failed to send threshold breach:', chrome.runtime.lastError);
         } else {
-          console.log('✅ Threshold breach + camera frame sent to background.');
+          console.log('[ProjectZen] ✅ Threshold breach + camera frame sent to background.');
         }
       });
     }
@@ -261,6 +266,7 @@
     if (isTracking === enabled) return;
     isTracking = enabled;
     if (!isTracking) {
+      console.log('[ProjectZen] Stopping tracking');
       stopBehavioralTracking();
       if (window.projectZenWebcam) window.projectZenWebcam.stop();
       teardownMutationObserver();
@@ -269,6 +275,7 @@
         window.projectZenThresholdMonitor.stopMonitoring();
       }
     } else {
+      console.log('[ProjectZen] Starting tracking');
       // On initial tracking start, create snapshot with signal reset
       createInitialUISnapshot();
       setupMutationObserver();
@@ -276,7 +283,10 @@
       if (window.projectZenWebcam) window.projectZenWebcam.setTracking(true);
       // Start threshold monitor with callback
       if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.startMonitoring) {
+        console.log('[ProjectZen] Starting threshold monitor');
         window.projectZenThresholdMonitor.startMonitoring(onThresholdBreached);
+      } else {
+        console.warn('[ProjectZen] Threshold monitor not available');
       }
     }
   }
@@ -295,7 +305,7 @@
         if (document.body) document.body.classList.remove('zen-mode-active');
       }
     }
-    console.log('Project Zen: Zen Mode', enabled ? 'on' : 'off');
+    console.log('[ProjectZen] Zen Mode', enabled ? 'on' : 'off');
   }
 
   function showZenPrompt() {
@@ -327,7 +337,12 @@
     });
     chrome.storage.local.get(['isTracking'], function (result) {
       if (chrome.runtime.lastError) return;
-      setTracking(result && result.isTracking);
+      const trackingEnabled = result && result.isTracking;
+      console.log('[ProjectZen] Tracking:', trackingEnabled ? 'ENABLED' : 'DISABLED (auto-enabling for testing)');
+      // Auto-enable tracking for testing
+      setTracking(true);
+      // Store the tracking state
+      chrome.storage.local.set({ isTracking: true });
     });
   }
 
@@ -342,7 +357,7 @@
       // Store adaptation strategy for partner to consume
       if (message.adaptationStrategy) {
         lastAdaptationData = message.adaptationStrategy;
-        console.log('📋 Adaptation strategy received:', lastAdaptationData);
+        console.log('[ProjectZen] 📋 Adaptation strategy received:', lastAdaptationData);
         // If partner hasn't implemented UI changes yet, show basic prompt
         showZenPrompt();
         // Partner can call window.projectZen.getLastAdaptationStrategy() to get the full strategy

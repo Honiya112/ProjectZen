@@ -3,19 +3,39 @@
  * Handles AI logic, state persistence, and messaging between popup and content.
  */
 
-// --- Gemini configuration (API key comes from .env via Vite build) ---
-const GEMINI_API_KEY =
-  (typeof import.meta !== 'undefined' &&
-    import.meta.env &&
-    import.meta.env.VITE_GEMINI_API_KEY) ||
-  '';
-
+// --- Gemini configuration (loaded at runtime from config.json) ---
+let GEMINI_API_KEY = '';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com';
 const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+
+// Load API key from config.json at service worker startup
+async function loadConfig() {
+  try {
+    const response = await fetch('config.json');
+    if (!response.ok) {
+      console.warn('[ProjectZen:Error] config.json not found. API key will not be available.');
+      return;
+    }
+    const config = await response.json();
+    GEMINI_API_KEY = config.VITE_GEMINI_API_KEY || '';
+    
+    if (GEMINI_API_KEY) {
+      console.log('[ProjectZen] ✅ API configuration loaded successfully from config.json');
+    } else {
+      console.warn('[ProjectZen:Error] VITE_GEMINI_API_KEY not found in config.json');
+    }
+  } catch (error) {
+    console.error('[ProjectZen:Error] Failed to load config.json:', error);
+  }
+}
+
+// Load config immediately on startup
+loadConfig();
 
 // Extension install/update
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
+    console.log('[ProjectZen] ✅ Extension installed. Please set your Gemini API key in the popup.');
     chrome.storage.local.set({
       zenEnabled: false,
       isTracking: false,
@@ -23,7 +43,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       lastSession: Date.now(),
     });
   } else if (details.reason === 'update') {
-    console.log('Project Zen updated');
+    console.log('[ProjectZen] ✅ Extension updated. API key will be retained if previously set.');
   }
 });
 
@@ -76,12 +96,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 5. THRESHOLD BREACH DETECTED (Enriched context + camera frame)
   if (message.type === 'THRESHOLD_BREACH') {
     const { payload } = message;
-    console.log('🚨 Threshold breach received from tab:', sender.tab?.id);
+    console.log('[ProjectZen] 🚨 Threshold breach received from tab:', sender.tab?.id);
     handleThresholdBreach(payload, sender.tab?.id);
     sendResponse({ received: true });
     return true;
   }
 });
+
+/**
+ * Format behavioral factors into a readable summary for Gemini prompt
+ */
+function formatBehavioralFactors(factors) {
+  if (!factors || Object.keys(factors).length === 0) {
+    return 'No signal data available';
+  }
+  
+  const parts = [];
+  
+  if (factors.scrollEntropy !== undefined) {
+    parts.push(`Scroll Erraticism: ${(factors.scrollEntropy * 100).toFixed(0)}%`);
+  }
+  if (factors.regressions !== undefined) {
+    parts.push(`Backward Scrolls: ${(factors.regressions * 100).toFixed(0)}%`);
+  }
+  if (factors.pause !== undefined) {
+    parts.push(`Attention Pause: ${(factors.pause * 100).toFixed(0)}%`);
+  }
+  if (factors.interactionLatency !== undefined) {
+    parts.push(`Interaction Lag: ${(factors.interactionLatency * 100).toFixed(0)}%`);
+  }
+  if (factors.dwellStuck !== undefined) {
+    parts.push(`Element Focus Stall: ${(factors.dwellStuck * 100).toFixed(0)}%`);
+  }
+  
+  return parts.length > 0 ? parts.join(', ') : 'No signal data available';
+}
 
 /**
  * THRESHOLD BREACH HANDLER
@@ -91,35 +140,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 let pendingThresholdBreach = null;
 
 async function handleThresholdBreach(breachData, tabId) {
-  console.log('🚨 Threshold breach received from tab:', tabId);
-  console.log('📊 Breach context:', {
-    score: breachData.score,
-    focusedElement: breachData.focusedElementId,
-    hasFrame: !!breachData.cameraFrame,
-    timestamp: breachData.timestamp,
+  console.log('[ProjectZen] 🚨 THRESHOLD BREACH HANDLER triggered for tab:', tabId);
+  console.log('[ProjectZen] 📊 Breach data:', {
+    'Stress Score': (breachData.score * 100).toFixed(1) + '%',
+    'Persistence Duration': breachData.persistenceSec + 's',
+    'Stress Trend': breachData.trend,
+    'Average Stress': breachData.averageStress ? (breachData.averageStress * 100).toFixed(1) + '%' : 'N/A',
+    'Camera Frame': breachData.cameraFrame ? 'YES (' + breachData.cameraFrame.length + ' chars)' : 'NO',
+    'UI Snapshot Elements': breachData.uiSnapshot?.elements?.length || 'N/A',
   });
 
   if (!breachData.cameraFrame) {
-    console.warn('⚠️ No camera frame captured. Skipping Gemini analysis.');
+    console.warn('[ProjectZen] ⚠️ No camera frame captured. Skipping Gemini analysis.');
     return;
   }
 
   if (!GEMINI_API_KEY) {
     console.warn(
-      'Project Zen: Missing GEMINI API key (VITE_GEMINI_API_KEY). Skipping analysis.'
+      '[ProjectZen:Error] ⚠️ Gemini API key not available. Ensure config.json is present and contains VITE_GEMINI_API_KEY. Skipping analysis.'
     );
     return;
   }
 
   try {
+    console.log('[ProjectZen] 🔄 Calling Gemini API for adaptation decision...');
     // Send enriched context to Gemini for adaptation decision
     const result = await analyzeWithEnrichedContext(
       breachData.cameraFrame,
       breachData
     );
 
+    console.log('[ProjectZen] 📋 Gemini result received:', result);
+
     if (result && result.decision === 'ADAPT') {
-      console.log('✅ Adaptation warranted. Mode:', result.mode, 'Targets:', result.targets);
+      console.log('[ProjectZen] ✅ Adaptation warranted. Mode:', result.mode, 'Targets:', result.targets);
+      console.log('[ProjectZen] 📤 Sending adaptation strategy to content script...');
       chrome.tabs.sendMessage(
         tabId,
         {
@@ -134,14 +189,18 @@ async function handleThresholdBreach(breachData, tabId) {
           },
         },
         () => {
-          void chrome.runtime.lastError;
+          if (chrome.runtime.lastError) {
+            console.error('[ProjectZen:Error] Failed to send adaptation to content script:', chrome.runtime.lastError);
+          } else {
+            console.log('[ProjectZen] ✅ Adaptation strategy sent to content script');
+          }
         }
       );
     } else {
-      console.log('ℹ️ No UI adaptation needed at this time.');
+      console.log('[ProjectZen] ℹ️ No UI adaptation needed at this time (decision:', (result?.decision || 'UNKNOWN') + ')');
     }
   } catch (error) {
-    console.error('Error analyzing threshold breach:', error);
+    console.error('[ProjectZen:Error] Error analyzing threshold breach:', error.message || error);
   }
 }
 
@@ -270,6 +329,9 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 }`;
 
   const url = `${GEMINI_ENDPOINT}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  
+  console.log('[ProjectZen] 📡 Sending request to Gemini API:', url.split('?')[0]);
+  console.log('[ProjectZen] 📄 Prompt preview (first 400 chars):', prompt.substring(0, 400) + '...');
 
   const body = {
     contents: [
@@ -300,19 +362,26 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
+    console.error('[ProjectZen:Error] Gemini API error:', res.status, res.statusText);
+    console.error('[ProjectZen:Error] Response:', text.substring(0, 500));
     throw new Error(
       `Gemini API error: ${res.status} ${res.statusText} – ${text}`
     );
   }
 
   const data = await res.json();
+  console.log('[ProjectZen] 📥 Gemini response received (status 200)');
+  console.log('[ProjectZen] 📊 Full response object:', JSON.stringify(data).substring(0, 800) + '...');
+  
   const answerText =
     data?.candidates?.[0]?.content?.parts?.[0]?.text ??
     data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join(' ') ??
     '';
 
+  console.log('[ProjectZen] 📝 Extracted Gemini text:', answerText.substring(0, 600));
+
   if (!answerText) {
-    console.warn('Gemini returned no text response.');
+    console.warn('[ProjectZen] Gemini returned no text response.');
     return { decision: 'NO_ACTION', confidence: 0, mode: 'NONE' };
   }
 
@@ -322,16 +391,18 @@ OUTPUT FORMAT (STRICT JSON ONLY):
     // Try to extract JSON from response (in case Gemini adds extra text)
     const jsonMatch = answerText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
+      console.log('[ProjectZen] 🔍 Found JSON in response, parsing...');
       parsedResponse = JSON.parse(jsonMatch[0]);
+      console.log('[ProjectZen] ✅ Successfully parsed JSON response');
     } else {
       throw new Error('No JSON found in response');
     }
   } catch (parseErr) {
-    console.warn('Failed to parse Gemini response as JSON:', answerText, parseErr);
+    console.warn('[ProjectZen] Failed to parse Gemini response as JSON:', answerText, parseErr);
     return { decision: 'NO_ACTION', confidence: 0, mode: 'NONE' };
   }
 
-  console.log('✅ Gemini adaptation decision:', parsedResponse);
+  console.log('[ProjectZen] ✅ FINAL ADAPTATION DECISION:', JSON.stringify(parsedResponse, null, 2));
 
   return parsedResponse;
 }

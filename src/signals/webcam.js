@@ -36,7 +36,7 @@
    */
   function captureFrameNow() {
     if (!videoEl || videoEl.paused || videoEl.ended || videoEl.readyState < 2) {
-      console.warn('Project Zen Webcam: Video not ready to capture.');
+      console.warn('[ProjectZen:Webcam] Video not ready to capture.');
       return null;
     }
     const scale = TARGET_WIDTH / videoEl.videoWidth;
@@ -47,7 +47,7 @@
     const ctx = canvasEl.getContext('2d');
     ctx.drawImage(videoEl, 0, 0, w, h);
     const base64 = canvasEl.toDataURL('image/jpeg', JPEG_QUALITY);
-    console.log(`📸 Frame captured on-demand: ${base64.length} chars (320px)`);
+    console.log(`[ProjectZen:Webcam] 📸 Frame captured on-demand: ${base64.length} chars (320px)`);
     return base64;
   }
 
@@ -55,7 +55,7 @@
     if (!isTracking) return;
     createCameraElements();
     if (stream) {
-      console.log('📹 Camera stream already active.');
+      console.log('[ProjectZen:Webcam] 📹 Camera stream already active.');
       return;
     }
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -68,13 +68,13 @@
         videoEl.srcObject = stream;
         videoEl.onloadedmetadata = function () {
           videoEl.play().catch(function () {});
-          console.log('📹 Camera stream initialized. Ready for on-demand capture.');
+          console.log('[ProjectZen:Webcam] 📹 Camera stream initialized. Ready for on-demand capture.');
         };
       })
       .catch(function (err) {
         var name = err && err.name || '';
         var denied = name === 'NotAllowedError' || name === 'PermissionDeniedError';
-        console.warn('Project Zen: camera access', denied ? 'denied or dismissed' : (err && err.message));
+        console.warn('[ProjectZen:Webcam] Camera access', denied ? 'denied or dismissed' : (err && err.message));
       });
   }
 
@@ -84,7 +84,7 @@
       stream = null;
     }
     if (videoEl && videoEl.srcObject) videoEl.srcObject = null;
-    console.log('📹 Camera stream stopped.');
+    console.log('[ProjectZen:Webcam] 📹 Camera stream stopped.');
   }
 
   function setTracking(enabled) {

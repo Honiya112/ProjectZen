@@ -5,11 +5,11 @@
  */
 
 (function () {
-  const SCROLL_ENTROPY_WEIGHT = 0.2;
-  const REGRESSION_WEIGHT = 0.25;
-  const PAUSE_WEIGHT = 0.2;
-  const LATENCY_WEIGHT = 0.15;
-  const DWELL_STUCK_WEIGHT = 0.2;
+  const SCROLL_ENTROPY_WEIGHT = 0.35; // Increased: erratic scrolling is primary indicator of confusion
+  const REGRESSION_WEIGHT = 0.3; // Increased: re-reading indicates struggling to comprehend
+  const PAUSE_WEIGHT = 0.15; // Reduced: pauses don't always indicate stress
+  const LATENCY_WEIGHT = 0.1; // Reduced: less reliable signal
+  const DWELL_STUCK_WEIGHT = 0.1; // Reduced: focus time isn't always bad
 
   /** Normalize pause duration (e.g. 0–10s) to 0–1 */
   function normPause(ms) {

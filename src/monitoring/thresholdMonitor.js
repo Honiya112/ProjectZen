@@ -8,8 +8,8 @@
 
 (function () {
   const CHECK_INTERVAL_MS = 2000; // Every 2 seconds
-  const STRESS_THRESHOLD = 0.6; // Normalized stress score (0–1)
-  const PERSISTENCE_CHECKS_REQUIRED = 6; // 6 checks × 2s = ~12 seconds minimum
+  const STRESS_THRESHOLD = 0.3; // Normalized stress score (0–1) — lowered to 30%
+  const PERSISTENCE_CHECKS_REQUIRED = 4; // 4 checks × 2s = ~8 seconds of sustained high stress
   const COOLDOWN_MS = 300000; // 5 minutes cooldown between analyses
   const STRESS_HISTORY_SIZE = 20; // Track last 40 seconds of scores
 
@@ -21,6 +21,10 @@
   // Persistence tracking
   let breachStartTime = null; // When breach first detected
   let lastBreachTriggerTime = null; // Last time we triggered callback
+  
+  // Hysteresis: track consecutive below-threshold checks to avoid resetting on temporary dips
+  let consecutiveLowChecks = 0; // Increments when score stays below threshold
+  const CONSECUTIVE_LOW_REQUIRED = 2; // Need 2 consecutive low checks to reset breach counter
 
   // Stress history for trend analysis
   let stressHistory = []; // Array of {timestamp, score}
@@ -65,7 +69,9 @@
     const estimateAPI = window.projectZenEstimateLoad;
 
     if (!signalsAPI || !signalsAPI.getState || !estimateAPI || !estimateAPI.estimateLoad) {
-      console.warn('Project Zen Monitor: Signals or estimation API not ready');
+      console.warn('[ProjectZen:Monitor] Signals or estimation API not ready');
+      console.warn('[ProjectZen:Monitor] Signals:', signalsAPI ? 'yes' : 'no', 'getState:', signalsAPI?.getState ? 'yes' : 'no');
+      console.warn('[ProjectZen:Monitor] EstimateLoad:', estimateAPI ? 'yes' : 'no', 'estimateLoad:', estimateAPI?.estimateLoad ? 'yes' : 'no');
       return null;
     }
 
@@ -74,7 +80,7 @@
     const score = loadResult.score || 0;
 
     console.log(
-      `📊 Stress check: ${(score * 100).toFixed(1)}% (threshold: ${(STRESS_THRESHOLD * 100).toFixed(0)}%, persistence: ${breachCount}/${PERSISTENCE_CHECKS_REQUIRED})`
+      `[ProjectZen:Monitor] 📊 Stress check: ${(score * 100).toFixed(1)}% (threshold: ${(STRESS_THRESHOLD * 100).toFixed(0)}%, persistence: ${breachCount}/${PERSISTENCE_CHECKS_REQUIRED})`
     );
 
     return {
@@ -108,7 +114,10 @@
    */
   function monitoringTick() {
     const result = checkStressLevel();
-    if (!result) return;
+    if (!result) {
+      console.log('[ProjectZen:Monitor] Warning: checkStressLevel returned null');
+      return;
+    }
 
     // Record score in history for trend analysis
     stressHistory.push({
@@ -122,30 +131,37 @@
     }
 
     if (result.exceeds) {
-      // First time breaching? Record the start
-      if (breachCount === 0) {
-        breachStartTime = Date.now();
-      }
+      // Score is HIGH - increment breach counter, reset low counter
+      consecutiveLowChecks = 0;
+      
+      // Don't increment if we're already in cooldown (counter should stay at 0 during cooldown)
+      if (!isInCooldown()) {
+        // First time breaching? Record the start
+        if (breachCount === 0) {
+          breachStartTime = Date.now();
+        }
 
-      breachCount += 1;
+        breachCount += 1;
+      }
+      
       const persistenceSec = getPersistenceDuration();
       const trend = analyzeStressTrend();
       console.log(
-        `⚠️ Breach detected. Count: ${breachCount}/${PERSISTENCE_CHECKS_REQUIRED}, Duration: ${persistenceSec}s, Trend: ${trend}`
+        `[ProjectZen:Monitor] ⚠️ Breach detected. Count: ${breachCount}/${PERSISTENCE_CHECKS_REQUIRED}, Duration: ${persistenceSec}s, Trend: ${trend}`
       );
 
       // Threshold confirmed breached → trigger callback (if not in cooldown)
-      // REQUIRES: persistent high stress (6+ checks = ~12+ seconds)
+      // REQUIRES: persistent high stress (4+ checks = ~8+ seconds)
       if (breachCount >= PERSISTENCE_CHECKS_REQUIRED && !isInCooldown()) {
-        console.log('🚨 PERSISTENT STRESS CONFIRMED (>12s). Triggering Gemini analysis.');
+        console.log('[ProjectZen:Monitor] 🚨 PERSISTENT STRESS CONFIRMED (>8s). Triggering Gemini analysis.');
         if (onThresholdBreached) {
           onThresholdBreached({
             score: result.score,
             factors: result.factors,
-            perElementStress: result.perElementStress, // NEW: per-element breakdown
+            perElementStress: result.perElementStress,
             state: result.state,
             persistenceSec,
-            trend, // Send trend info to Gemini
+            trend,
             averageStress: getAverageStress(),
           });
         }
@@ -154,18 +170,25 @@
         // Reset after callback so we don't spam
         breachCount = 0;
         breachStartTime = null;
-        stressHistory = []; // Clear history after trigger
+        consecutiveLowChecks = 0;
+        stressHistory = [];
       } else if (breachCount >= PERSISTENCE_CHECKS_REQUIRED && isInCooldown()) {
         const timeSinceLastTrigger = Math.floor((Date.now() - lastBreachTriggerTime) / 1000);
         const cooldownRemaining = Math.floor((COOLDOWN_MS - (Date.now() - lastBreachTriggerTime)) / 1000);
-        console.log(`⏳ In cooldown. Last trigger ${timeSinceLastTrigger}s ago. Cooldown remaining: ${cooldownRemaining}s`);
+        console.log(`[ProjectZen:Monitor] ⏳ In cooldown. Last trigger ${timeSinceLastTrigger}s ago. Cooldown remaining: ${cooldownRemaining}s`);
       }
     } else {
-      // Score dropped below threshold; reset counter
-      if (breachCount > 0) {
-        console.log('✅ Score dropped below threshold. Resetting breach counter.');
+      // Score is LOW - increment consecutive low checks
+      consecutiveLowChecks += 1;
+      
+      // Only reset after multiple consecutive low checks (hysteresis to avoid resetting on temporary dips)
+      if (breachCount > 0 && consecutiveLowChecks >= CONSECUTIVE_LOW_REQUIRED) {
+        console.log(`[ProjectZen:Monitor] ✅ Score below threshold for ${CONSECUTIVE_LOW_REQUIRED} checks. Resetting breach counter (was at ${breachCount}/${PERSISTENCE_CHECKS_REQUIRED}).`);
         breachCount = 0;
         breachStartTime = null;
+        consecutiveLowChecks = 0;
+      } else if (breachCount > 0 && consecutiveLowChecks < CONSECUTIVE_LOW_REQUIRED) {
+        console.log(`[ProjectZen:Monitor] ℹ️ Score dipped below threshold (low count: ${consecutiveLowChecks}/${CONSECUTIVE_LOW_REQUIRED}). Breach counter holding at ${breachCount}/${PERSISTENCE_CHECKS_REQUIRED}.`);
       }
     }
   }
@@ -176,7 +199,7 @@
    */
   function startMonitoring(callback) {
     if (isMonitoring) {
-      console.warn('Project Zen Monitor: Already monitoring.');
+      console.warn('[ProjectZen:Monitor] Already monitoring.');
       return;
     }
     isMonitoring = true;
@@ -184,15 +207,13 @@
     breachCount = 0;
     breachStartTime = null;
     lastBreachTriggerTime = null;
-    stressHistory = []; // Clear history on start
+    consecutiveLowChecks = 0;
+    stressHistory = [];
 
-    console.log('🟢 Threshold monitor started. Persistence window: ~12 seconds.');
+    console.log('[ProjectZen:Monitor] 🟢 Threshold monitor started. Will trigger after 4 consecutive high-stress checks (~8 seconds).');
     monitorTimerId = setInterval(monitoringTick, CHECK_INTERVAL_MS);
   }
 
-  /**
-   * Stop monitoring
-   */
   function stopMonitoring() {
     if (!isMonitoring) return;
     isMonitoring = false;
@@ -203,10 +224,11 @@
     }
     breachCount = 0;
     breachStartTime = null;
+    consecutiveLowChecks = 0;
     stressHistory = [];
     onThresholdBreached = null;
 
-    console.log('🔴 Threshold monitor stopped.');
+    console.log('[ProjectZen:Monitor] 🔴 Threshold monitor stopped.');
   }
 
   /**
