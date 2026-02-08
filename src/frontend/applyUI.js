@@ -1,113 +1,84 @@
+// src/frontend/applyUI.js
+import { createZenContainer, createSummaryCard, createGlassBlock } from './components/GlassComponents.js';
+
 /**
- * Project Zen - Apply UI
- * Maps Semantic JSON from Gemini to actual glass components (zen reader, focus, etc.).
+ * THE RENDERER: Orchestrates the Zen View
  */
-
-(function () {
-  function setZenMode(enabled) {
-    const root = document.documentElement;
-    if (enabled) {
-      root.classList.add('zen-mode-active');
-      if (document.body) document.body.classList.add('zen-mode-active');
-    } else {
-      root.classList.remove('zen-mode-active');
-      if (document.body) document.body.classList.remove('zen-mode-active');
-    }
+export function renderZenMode() {
+  // 1. EXTRACT COLORS (Simple Heuristic)
+  let primaryColor = window.getComputedStyle(document.body).backgroundColor;
+  // If transparent/white, try to find a header color
+  if (primaryColor === 'rgba(0, 0, 0, 0)' || primaryColor === 'rgb(255, 255, 255)') {
+    const header = document.querySelector('header, nav, .navbar');
+    if (header) primaryColor = window.getComputedStyle(header).backgroundColor;
+  }
+  // Fallback to "Smart Grey"
+  if (!primaryColor || primaryColor === 'rgb(255, 255, 255)') {
+    primaryColor = 'rgba(226, 232, 240, 0.6)'; 
   }
 
-  function showZenPrompt() {
-    if (document.getElementById('zen-prompt-overlay')) return;
-    const overlay = document.createElement('div');
-    overlay.id = 'zen-prompt-overlay';
-    overlay.innerHTML =
-      '<div class="zen-card">' +
-      '<div class="zen-icon">🧘‍♂️</div>' +
-      '<h3>Need a Focus Boost?</h3>' +
-      '<p>You look a bit overwhelmed. Want to switch to Zen Mode?</p>' +
-      '<div class="zen-actions">' +
-      '<button id="zen-yes">Yes, please</button>' +
-      '<button id="zen-no">Not now</button>' +
-      '</div></div>';
-    document.body.appendChild(overlay);
-    document.getElementById('zen-yes').onclick = function () {
-      setZenMode(true);
-      overlay.remove();
-    };
-    document.getElementById('zen-no').onclick = function () {
-      overlay.remove();
-    };
-  }
+  // 2. SCRAPE CONTENT (The "Extract" Phase)
+  // We look for the main content wrapper
+  const articleRoot = document.querySelector('#mw-content-text .mw-parser-output') || 
+                      document.querySelector('article') || 
+                      document.querySelector('main') || 
+                      document.querySelector('#content') || 
+                      document.body;
 
-  /** Build zen reader overlay with magnifying focus (from semantic/context). */
-  function applyZenReader(semantic) {
-    let primaryColor = window.getComputedStyle(document.body).backgroundColor;
-    if (!primaryColor || primaryColor === 'rgba(0, 0, 0, 0)' || primaryColor === 'rgb(255, 255, 255)') {
-      const header = document.querySelector('header, nav, .navbar');
-      if (header) primaryColor = window.getComputedStyle(header).backgroundColor;
+  // 3. BUILD THE STAGE
+  // Remove existing overlay if present
+  const existing = document.getElementById('zen-reader-view');
+  if (existing) existing.remove();
+
+  // Create the container with the dynamic color
+  const { overlay, column } = createZenContainer(primaryColor);
+
+  // Add the AI Summary Chip
+  column.appendChild(createSummaryCard("Environment optimized. Focus magnifier active."));
+
+  // Add the Title
+  const title = document.createElement('h1');
+  title.innerText = document.title.split('-')[0].trim();
+  column.appendChild(title);
+
+  // 4. PROCESS & INJECT NODES
+  Array.from(articleRoot.children).forEach(node => {
+    // Filter junk (navs, scripts, tiny lists)
+    if (['NAV', 'HEADER', 'FOOTER', 'ASIDE', 'FORM', 'SCRIPT', 'STYLE'].includes(node.tagName)) return;
+    if (node.classList.contains('mw-editsection') || node.classList.contains('toc')) return;
+    
+    // Check if it's "Substantive" content
+    let isContent = false;
+    if (['H1','H2','H3','H4'].includes(node.tagName)) isContent = true;
+    if (['P','BLOCKQUOTE','FIGURE','UL','OL'].includes(node.tagName) && node.innerText.trim().length > 20) isContent = true;
+    if (node.tagName === 'P' && node.querySelector('img')) isContent = true;
+
+    if (isContent) {
+      // Use our Component Factory to create the glass block
+      const glassBlock = createGlassBlock(node);
+      column.appendChild(glassBlock);
     }
-    if (!primaryColor || primaryColor === 'rgb(255, 255, 255)') {
-      primaryColor = 'rgba(226, 232, 240, 0.6)';
-    }
+  });
 
-    const articleRoot =
-      document.querySelector('#mw-content-text .mw-parser-output') ||
-      document.querySelector('article') ||
-      document.querySelector('main') ||
-      document.querySelector('#content') ||
-      document.body;
+  // Attach to DOM
+  document.body.appendChild(overlay);
 
-    const overlay = document.createElement('div');
-    overlay.id = 'zen-reader-view';
-    overlay.style.setProperty('--zen-bg-1', primaryColor);
-    overlay.style.setProperty('--zen-bg-2', primaryColor.replace('rgb', 'rgba').replace(')', ', 0.5)'));
-
-    const column = document.createElement('div');
-    column.className = 'zen-reader-column';
-    column.innerHTML =
-      '<div class="summary-card"><p class="summary-content">✨ <b>AI Briefing:</b> Environment adapted to page context. Focus magnifier active.</p></div>' +
-      '<h1>' + document.title.split('-')[0].trim() + '</h1>';
-
-    Array.from(articleRoot.children).forEach(function (node) {
-      if (['NAV', 'HEADER', 'FOOTER', 'ASIDE', 'FORM', 'SCRIPT', 'STYLE'].indexOf(node.tagName) >= 0) return;
-      if (node.classList && (node.classList.contains('mw-editsection') || node.classList.contains('toc'))) return;
-      if (['UL', 'OL'].indexOf(node.tagName) >= 0 && node.querySelectorAll('a').length > 5 && node.innerText.length < 200) return;
-      var isContent = ['H1','H2','H3','H4'].indexOf(node.tagName) >= 0 ||
-        (['P','BLOCKQUOTE','FIGURE','UL','OL'].indexOf(node.tagName) >= 0 && node.innerText.trim().length > 20) ||
-        (node.tagName === 'P' && node.querySelector('img'));
-      if (!isContent) return;
-      var clone = node.cloneNode(true);
-      function cleaner(el) {
-        el.removeAttribute('class');
-        el.removeAttribute('id');
-        el.removeAttribute('style');
-        if (el.tagName !== 'IMG') { el.removeAttribute('width'); el.removeAttribute('height'); }
-        if (el.tagName === 'A') el.target = '_blank';
+  // 5. ACTIVATE THE "MAGNIFYING GLASS" (Intersection Observer)
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      // This toggles the CSS class that triggers the 3D Pop-out effect
+      if (entry.isIntersecting) {
+        entry.target.classList.add('focus-paragraph');
+      } else {
+        entry.target.classList.remove('focus-paragraph');
       }
-      cleaner(clone);
-      var allChild = clone.querySelectorAll('*');
-      for (var j = 0; j < allChild.length; j++) cleaner(allChild[j]);
-      var imgs = clone.querySelectorAll('img');
-      for (var k = 0; k < imgs.length; k++) { if (!imgs[k].src.startsWith('http')) imgs[k].src = imgs[k].src; }
-      column.appendChild(clone);
     });
+  }, { 
+    root: overlay, 
+    rootMargin: "-45% 0px -45% 0px", // Strict center focus
+    threshold: 0 
+  });
 
-    overlay.appendChild(column);
-    document.body.appendChild(overlay);
-
-    var obs = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) entry.target.classList.add('focus-paragraph');
-        else entry.target.classList.remove('focus-paragraph');
-      });
-    }, { root: overlay, rootMargin: '-45% 0px -45% 0px', threshold: 0 });
-    column.querySelectorAll('p, h2, h3, li, blockquote').forEach(function (el) { obs.observe(el); });
-  }
-
-  if (typeof window !== 'undefined') {
-    window.projectZenApplyUI = {
-      setZenMode,
-      showZenPrompt,
-      applyZenReader,
-    };
-  }
-})();
+  // Watch text blocks
+  column.querySelectorAll('p, h2, h3, li, blockquote').forEach(el => observer.observe(el));
+}

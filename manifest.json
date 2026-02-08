@@ -12,18 +12,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": [
-        "src/ui-structure/extractUI.js",
-        "src/signals/scroll.js",
-        "src/signals/clicks.js",
-        "src/signals/dwell.js",
-        "src/signals/webcam.js",
-        "src/load-estimation/estimateLoad.js",
-        "src/monitoring/thresholdMonitor.js",
-        "src/frontend/applyUI.js",
-        "src/index.js"
-      ],
-      "css": ["src/styles/zen-mode.css"]
+      "js": ["content.js"],
+      "css": ["styles/zen-mode.css"]
     }
   ],
   "web_accessible_resources": [

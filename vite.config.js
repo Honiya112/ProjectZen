@@ -1,28 +1,63 @@
 import { defineConfig } from 'vite';
-import fs from 'fs';
-import path from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    minify: false,
-    lib: {
-      entry: 'background.js',
-      name: 'ProjectZen',
-      fileName: () => 'background.js',
-      formats: ['es'],
-    },
     rollupOptions: {
-      external: (id) => id.startsWith('chrome'),
-      output: {
-        format: 'es',
-        dir: 'dist',
+      input: {
+        // Use resolve with the new __dirname
+        content: resolve(__dirname, 'src/index.js'),
+        background: resolve(__dirname, 'background.js'),
+        popup: resolve(__dirname, 'popup/popup.html')
       },
-    },
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]'
+      }
+    }
   },
-  define: {
-    'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || ''),
-  },
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        { src: 'manifest.json', dest: '.' },
+        { src: 'config.json', dest: '.' },
+        { src: 'styles', dest: '.' }, 
+        { src: 'lib', dest: '.' },
+        { src: 'public/index.html', dest: '.' }
+      ]
+    })
+  ]
 });
+
+// export default defineConfig({
+//   build: {
+//     outDir: 'dist',
+//     emptyOutDir: true,
+//     minify: false,
+//     lib: {
+//       entry: 'background.js',
+//       name: 'ProjectZen',
+//       fileName: () => 'background.js',
+//       formats: ['es'],
+//     },
+//     rollupOptions: {
+//       external: (id) => id.startsWith('chrome'),
+//       output: {
+//         format: 'es',
+//         dir: 'dist',
+//       },
+//     },
+//   },
+//   define: {
+//     'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(process.env.VITE_GEMINI_API_KEY || ''),
+//   },
+// });
 

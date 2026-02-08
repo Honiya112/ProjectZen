@@ -2,6 +2,37 @@
  * Project Zen - Main entry point (Orchestrator)
  * Wires UI snapshot, behavioral signals, webcam, load estimation, and frontend.
  */
+import './ui-structure/extractUI.js';
+import './signals/scroll.js';
+import './signals/clicks.js';
+import './signals/dwell.js';
+import './signals/webcam.js';
+import './load-estimation/estimateLoad.js';
+import './monitoring/thresholdMonitor.js';
+
+import { renderZenMode } from './frontend/applyUI.js';
+
+window.projectZenApplyUI = {
+  setZenMode: (enabled) => {
+    if (enabled) {
+      console.log("✨ Activating Glass UI...");
+      // Set the attribute so CSS can lock scrolling immediately
+      document.documentElement.setAttribute('data-project-zen', 'on');
+      // Render your new UI
+      renderZenMode();
+    } else {
+      console.log("↩️ Deactivating Glass UI...");
+      document.documentElement.removeAttribute('data-project-zen');
+      // Reload to perfectly restore the original site
+      location.reload();
+    }
+  },
+  
+  // Optional: If you want to show a custom prompt later
+  showZenPrompt: () => {
+    console.log("Zen Prompt requested (Custom UI coming soon)");
+  }
+};
 
 (function () {
   const ZEN_ATTR = 'data-project-zen';
@@ -19,6 +50,64 @@
   
   // Element ID mapping for signal preservation
   let elementIdMapping = {}; // Maps old element IDs to new element IDs when DOM changes
+
+  console.log("🚀 Project Zen: Orchestrator Loaded");
+
+  // 1. LISTEN FOR STATE CHANGES (From Popup or AI)
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'ZEN_STATE_CHANGED') {
+      // Pass the boolean directly to our main handler
+      setZenMode(message.zenEnabled);
+    }
+    
+    // Partner's tracking logic
+    if (message.type === 'TRACKING_STATE_CHANGED') {
+      setTracking(message.isTracking);
+    }
+    
+    if (message.type === 'SHOW_ZEN_PROMPT') {
+       if (message.adaptationStrategy) {
+         lastAdaptationData = message.adaptationStrategy;
+       }
+       showZenPrompt();
+    }
+  });
+
+  // 2. CHECK INITIAL STATE ON LOAD
+  chrome.storage.local.get(['zenEnabled', 'isTracking'], (result) => {
+    if (result.zenEnabled) {
+      setZenMode(true);
+    }
+    
+    // Auto-enable tracking for testing if needed
+    if (result.isTracking) {
+      setTracking(true);
+    } else {
+      // Optional: Force tracking ON for hackathon demo purposes
+      setTracking(true);
+      chrome.storage.local.set({ isTracking: true });
+    }
+  });
+
+  // Trigger new Glass UI
+  function setZenMode(enabled) {
+    zenActive = enabled;
+    console.log('[ProjectZen] Setting Zen Mode to:', enabled);
+
+    if (window.projectZenApplyUI && window.projectZenApplyUI.setZenMode) {
+      window.projectZenApplyUI.setZenMode(enabled);
+    } else {
+      // Fallback (Legacy)
+      var root = document.documentElement;
+      if (enabled) {
+        root.classList.add('zen-mode-active');
+        if (document.body) document.body.classList.add('zen-mode-active');
+      } else {
+        root.classList.remove('zen-mode-active');
+        if (document.body) document.body.classList.remove('zen-mode-active');
+      }
+    }
+  }
 
   /**
    * Create initial UI snapshot and RESET signals
@@ -291,23 +380,6 @@
     }
   }
 
-  function setZenMode(enabled) {
-    zenActive = enabled;
-    if (window.projectZenApplyUI && window.projectZenApplyUI.setZenMode) {
-      window.projectZenApplyUI.setZenMode(enabled);
-    } else {
-      var root = document.documentElement;
-      if (enabled) {
-        root.classList.add('zen-mode-active');
-        if (document.body) document.body.classList.add('zen-mode-active');
-      } else {
-        root.classList.remove('zen-mode-active');
-        if (document.body) document.body.classList.remove('zen-mode-active');
-      }
-    }
-    console.log('[ProjectZen] Zen Mode', enabled ? 'on' : 'off');
-  }
-
   function showZenPrompt() {
     if (window.projectZenApplyUI && window.projectZenApplyUI.showZenPrompt) {
       window.projectZenApplyUI.showZenPrompt();
@@ -331,10 +403,15 @@
 
   function init() {
     if (typeof chrome === 'undefined' || !chrome.runtime) return;
+
     chrome.runtime.sendMessage({ type: 'GET_ZEN_STATE' }, function (response) {
       if (chrome.runtime.lastError) return;
-      setZenMode(response && response.zenEnabled);
+
+      if (response && response.zenEnabled) {
+        setZenMode(true);
+      }
     });
+
     chrome.storage.local.get(['isTracking'], function (result) {
       if (chrome.runtime.lastError) return;
       const trackingEnabled = result && result.isTracking;
