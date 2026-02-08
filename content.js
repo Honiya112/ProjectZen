@@ -120,9 +120,11 @@ function setTracking(enabled) {
   if (isTracking === enabled) return;
   isTracking = enabled;
   if (!isTracking) {
+    stopBehavioralTracking();
     stopCameraCapture();
   } else {
     refreshUISnapshot();
+    startBehavioralTracking();
     startCameraCapture();
   }
 }
@@ -131,8 +133,30 @@ function setTracking(enabled) {
 function refreshUISnapshot() {
   if (typeof window.projectZenExtractUI !== 'undefined' && window.projectZenExtractUI.getStructuralSnapshot) {
     uiSnapshot = window.projectZenExtractUI.getStructuralSnapshot();
+    if (typeof window.projectZenBehavioralSignals !== 'undefined' && window.projectZenBehavioralSignals.reset) {
+      window.projectZenBehavioralSignals.reset();
+    }
     console.log('Project Zen: UI snapshot has', uiSnapshot?.elements?.length ?? 0, 'candidate elements');
   }
+}
+
+function startBehavioralTracking() {
+  if (typeof window.projectZenBehavioralSignals !== 'undefined' && window.projectZenBehavioralSignals.start) {
+    window.projectZenBehavioralSignals.start();
+  }
+}
+
+function stopBehavioralTracking() {
+  if (typeof window.projectZenBehavioralSignals !== 'undefined' && window.projectZenBehavioralSignals.stop) {
+    window.projectZenBehavioralSignals.stop();
+  }
+}
+
+/** Get current behavioral signals (for AI / cognitive-load threshold). */
+function getBehavioralState() {
+  return typeof window.projectZenBehavioralSignals !== 'undefined' && window.projectZenBehavioralSignals.getState
+    ? window.projectZenBehavioralSignals.getState()
+    : null;
 }
 
 function init() {
