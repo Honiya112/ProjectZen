@@ -8,6 +8,9 @@ let zenActive = false;
 let isTracking = false;
 const ZEN_ATTR = 'data-project-zen';
 
+// --- UI structural snapshot (candidate elements for behavioral signal mapping) ---
+let uiSnapshot = null;
+
 // --- Camera capture (hidden video + canvas, 3s frame → Base64 JPEG → background) ---
 const CAPTURE_INTERVAL_MS = 3000;
 let videoEl = null;
@@ -119,7 +122,16 @@ function setTracking(enabled) {
   if (!isTracking) {
     stopCameraCapture();
   } else {
+    refreshUISnapshot();
     startCameraCapture();
+  }
+}
+
+/** Refresh the structural snapshot of the page (candidate elements for dwell/scroll mapping). */
+function refreshUISnapshot() {
+  if (typeof window.projectZenExtractUI !== 'undefined' && window.projectZenExtractUI.getStructuralSnapshot) {
+    uiSnapshot = window.projectZenExtractUI.getStructuralSnapshot();
+    console.log('Project Zen: UI snapshot has', uiSnapshot?.elements?.length ?? 0, 'candidate elements');
   }
 }
 
