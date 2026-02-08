@@ -35,16 +35,54 @@
     if (S.stopDwell) S.stopDwell();
   }
 
+  /**
+   * Callback when threshold breach is confirmed.
+   * Send enriched context to background for Gemini analysis.
+   */
+  function onThresholdBreached(loadData) {
+    console.log('🚨 Threshold breach detected. Sending to background for Gemini analysis.');
+    const behavioralState = getBehavioralState();
+    const focusedElementId = behavioralState && behavioralState.focusedElementId;
+
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      chrome.runtime.sendMessage({
+        type: 'THRESHOLD_BREACH',
+        payload: {
+          score: loadData.score,
+          factors: loadData.factors,
+          focusedElementId,
+          idsInViewport: behavioralState && behavioralState.idsInViewport,
+          uiSnapshot,
+          timestamp: Date.now(),
+        },
+      }, function (response) {
+        if (chrome.runtime.lastError) {
+          console.error('Failed to send threshold breach:', chrome.runtime.lastError);
+        } else {
+          console.log('✅ Threshold breach sent to background.');
+        }
+      });
+    }
+  }
+
   function setTracking(enabled) {
     if (isTracking === enabled) return;
     isTracking = enabled;
     if (!isTracking) {
       stopBehavioralTracking();
       if (window.projectZenWebcam) window.projectZenWebcam.stop();
+      // Stop threshold monitor
+      if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.stopMonitoring) {
+        window.projectZenThresholdMonitor.stopMonitoring();
+      }
     } else {
       refreshUISnapshot();
       startBehavioralTracking();
       if (window.projectZenWebcam) window.projectZenWebcam.setTracking(true);
+      // Start threshold monitor with callback
+      if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.startMonitoring) {
+        window.projectZenThresholdMonitor.startMonitoring(onThresholdBreached);
+      }
     }
   }
 

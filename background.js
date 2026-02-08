@@ -77,7 +77,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 5. RECEIVE CAMERA FRAMES (The Bridge to AI)
+  // 5. THRESHOLD BREACH DETECTED (Enriched context from content script)
+  if (message.type === 'THRESHOLD_BREACH') {
+    const { payload } = message;
+    console.log('🚨 Threshold breach received from tab:', sender.tab?.id);
+    handleThresholdBreach(payload, sender.tab?.id);
+    sendResponse({ received: true });
+    return true;
+  }
+
+  // 6. RECEIVE CAMERA FRAMES (The Bridge to AI)
   if (message.type === 'CAMERA_FRAME') {
     const { frame } = message;
     if (typeof frame === 'string' && frame.startsWith('data:image/jpeg')) {
@@ -89,7 +98,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 /**
- * 🧠 THE AI PROCESSING HUB
+ * THRESHOLD BREACH HANDLER
+ * Stores breach context from content script. Will be paired with next camera frame for Gemini.
+ */
+let pendingThresholdBreach = null;
+
+async function handleThresholdBreach(breachData, tabId) {
+  console.log('📊 Storing threshold breach context:', {
+    score: breachData.score,
+    focusedElement: breachData.focusedElementId,
+    timestamp: breachData.timestamp,
+  });
+
+  // Store the breach context — will be sent with next camera frame
+  pendingThresholdBreach = {
+    ...breachData,
+    tabId,
+    timestamp: breachData.timestamp || Date.now(),
+  };
+}
+
+/**
+ * THE AI PROCESSING HUB
  * Send frames to Gemini to check for cognitive load.
  */
 async function handleCameraFrame(base64Image, tabId) {

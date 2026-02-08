@@ -19,6 +19,7 @@
         "src/signals/dwell.js",
         "src/signals/webcam.js",
         "src/load-estimation/estimateLoad.js",
+        "src/monitoring/thresholdMonitor.js",
         "src/frontend/applyUI.js",
         "src/index.js"
       ],
