@@ -5,10 +5,21 @@
 
 (function () {
   const ZEN_ATTR = 'data-project-zen';
+  const DOM_CHANGE_DEBOUNCE_MS = 1000; // Wait 1s after last mutation to update snapshot
+
   let zenActive = false;
   let isTracking = false;
   let uiSnapshot = null;
+  let lastAdaptationData = null; // Cache adaptation strategy for partner to apply
 
+  // MutationObserver for tracking DOM changes
+  let mutationObserver = null;
+  let mutationDebounceTimer = null;
+
+  /**
+   * Refresh UI snapshot when DOM structure changes
+   * Debounced to avoid excessive updates during rapid DOM mutations
+   */
   function refreshUISnapshot() {
     if (typeof window.projectZenExtractUI !== 'undefined' && window.projectZenExtractUI.getStructuralSnapshot) {
       uiSnapshot = window.projectZenExtractUI.getStructuralSnapshot();
@@ -16,6 +27,63 @@
         window.projectZenSignals.resetSignals();
       }
       console.log('Project Zen: UI snapshot has', (uiSnapshot && uiSnapshot.elements && uiSnapshot.elements.length) || 0, 'candidate elements');
+    }
+  }
+
+  /**
+   * Debounced UI snapshot refresh - called when DOM changes detected
+   */
+  function debouncedRefreshUISnapshot() {
+    if (mutationDebounceTimer) clearTimeout(mutationDebounceTimer);
+    mutationDebounceTimer = setTimeout(() => {
+      console.log('📄 DOM changes detected. Updating UI snapshot.');
+      refreshUISnapshot();
+    }, DOM_CHANGE_DEBOUNCE_MS);
+  }
+
+  /**
+   * Setup MutationObserver to detect DOM structure changes
+   */
+  function setupMutationObserver() {
+    if (mutationObserver) return; // Already set up
+
+    const config = {
+      childList: true,      // Track added/removed children
+      subtree: true,        // Watch entire tree
+      attributes: false,    // Don't track attribute changes (too noisy)
+      characterData: false, // Don't track text changes
+    };
+
+    mutationObserver = new MutationObserver((mutations) => {
+      // Check if changes are meaningful (not just noise)
+      const hasMeaningfulChanges = mutations.some((mutation) => {
+        if (mutation.type === 'childList') {
+          return mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0;
+        }
+        return false;
+      });
+
+      if (hasMeaningfulChanges) {
+        debouncedRefreshUISnapshot();
+      }
+    });
+
+    const rootNode = document.body || document.documentElement;
+    mutationObserver.observe(rootNode, config);
+    console.log('📡 MutationObserver activated. Watching for DOM changes.');
+  }
+
+  /**
+   * Teardown MutationObserver
+   */
+  function teardownMutationObserver() {
+    if (mutationObserver) {
+      mutationObserver.disconnect();
+      mutationObserver = null;
+    }
+    if (mutationDebounceTimer) {
+      clearTimeout(mutationDebounceTimer);
+      mutationDebounceTimer = null;
     }
   }
 
@@ -60,6 +128,7 @@
           idsInViewport: behavioralState && behavioralState.idsInViewport,
           uiSnapshot,
           cameraFrame,
+          persistenceSec: loadData.persistenceSec || 0,
           timestamp: Date.now(),
         },
       }, function (response) {
@@ -78,12 +147,14 @@
     if (!isTracking) {
       stopBehavioralTracking();
       if (window.projectZenWebcam) window.projectZenWebcam.stop();
+      teardownMutationObserver();
       // Stop threshold monitor
       if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.stopMonitoring) {
         window.projectZenThresholdMonitor.stopMonitoring();
       }
     } else {
       refreshUISnapshot();
+      setupMutationObserver();
       startBehavioralTracking();
       if (window.projectZenWebcam) window.projectZenWebcam.setTracking(true);
       // Start threshold monitor with callback
@@ -124,6 +195,13 @@
     return uiSnapshot;
   }
 
+  /**
+   * Get cached adaptation strategy (for partner to apply)
+   */
+  function getLastAdaptationStrategy() {
+    return lastAdaptationData;
+  }
+
   function init() {
     if (typeof chrome === 'undefined' || !chrome.runtime) return;
     chrome.runtime.sendMessage({ type: 'GET_ZEN_STATE' }, function (response) {
@@ -144,7 +222,17 @@
       setTracking(message.isTracking);
     }
     if (message.type === 'SHOW_ZEN_PROMPT') {
-      showZenPrompt();
+      // Store adaptation strategy for partner to consume
+      if (message.adaptationStrategy) {
+        lastAdaptationData = message.adaptationStrategy;
+        console.log('📋 Adaptation strategy received:', lastAdaptationData);
+        // If partner hasn't implemented UI changes yet, show basic prompt
+        showZenPrompt();
+        // Partner can call window.projectZen.getLastAdaptationStrategy() to get the full strategy
+      } else {
+        // Legacy: simple prompt without adaptation data
+        showZenPrompt();
+      }
     }
   });
 
@@ -161,5 +249,6 @@
     getBehavioralState,
     getUISnapshot,
     refreshUISnapshot,
+    getLastAdaptationStrategy,
   };
 })();
