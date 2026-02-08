@@ -1,0 +1,6 @@
+{
+  "name": "project-zen",
+  "version": "1.0.0",
+  "description": "Adjusts webpage complexity based on real-time cognitive load using Gemini.",
+  "private": true
+}
