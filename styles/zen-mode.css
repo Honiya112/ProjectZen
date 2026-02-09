@@ -22,33 +22,47 @@ html[data-project-zen="on"] body {
   overflow-y: auto;
   
   /* THIS IS THE MAGIC: Blurs the actual website behind the overlay */
-  background: rgba(255, 255, 255, 0.15); /* Slight white tint */
-  backdrop-filter: blur(20px) saturate(180%); /* Turn site into colorful blobs */
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(220, 220, 230, 0.4); 
+  backdrop-filter: blur(25px) saturate(150%);
+  -webkit-backdrop-filter: blur(25px) saturate(150%);
   
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  animation: fadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: fadeIn 0.8s ease-out;
+  padding-top: 5vh;
+  padding-bottom: 20vh;
+  box-sizing: border-box;
 }
 
 /* 3. THE STREAM CONTAINER (Invisible Rail) */
 .zen-reader-column {
-  margin: 10vh 0 40vh 0; /* Center vertically initially */
   width: 90%;
-  max-width: 720px;
-  /* No background here - let cards float freely */
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  max-width: 700px;
+  min-height: 80vh;
+  
+  /* Subtle Glass Rail */
+  background: rgba(255, 255, 255, 0.25); /* More transparent */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 40px; /* Super rounded rail */
+  
+  /* No Shadow on rail - we want it to feel 'embedded' */
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.2); 
+  
+  padding: 60px 40px; 
+  margin-bottom: 10vh;
+  box-sizing: border-box;
 }
 
 /* 4. TYPOGRAPHY (Base State) */
 #zen-reader-view h1 {
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 800;
-  color: #1a1a1a;
+  color: #1e293b;
   text-align: center;
-  margin-bottom: 4rem;
-  text-shadow: 0 2px 10px rgba(255,255,255,0.5);
+  margin-bottom: 3rem;
+  text-shadow: 0 2px 20px rgba(255,255,255,0.8);
 }
 
 /* 5. THE "UNFOCUSED" CARDS (The Blur) */
@@ -60,41 +74,52 @@ html[data-project-zen="on"] body {
 #zen-reader-view blockquote,
 #zen-reader-view figure,
 #zen-reader-view .zen-data-card {
-  transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
-  opacity: 0.4;                 /* Fade them out */
-  filter: blur(2px);            /* Blur them out */
-  transform: scale(0.95);       /* Shrink them slightly */
-  margin-bottom: 1.5rem;
+  transition: all 0.4s ease;
+  
+  /* Ghost State */
+  opacity: 0.5;
+  transform: scale(0.98); /* Slightly smaller */
+  filter: blur(0.5px);    /* Tiny blur to push it back */
+  
+  margin-bottom: 1rem;
   padding: 20px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.1); /* Very faint glass */
+  background: transparent;
   border: 1px solid transparent;
+  color: #475569;
+  
+  /* Prevent overflow */
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* 6. THE FOCUSED CARD (The "Magnifying Glass") */
 #zen-reader-view .focus-paragraph {
+  /* High Visibility */
   opacity: 1 !important;
-  filter: blur(0) !important;      /* Crystal clear */
-  transform: scale(1.08);          /* "Magnify" it (Zoom in) */
+  filter: blur(0) !important;
+  color: #0f172a !important;
+  
+  /* The "Lens" Zoom */
+  transform: scale(1.08); 
   z-index: 100;
+  position: relative;
   
-  /* THE MILKY GLASS LOOK */
-  background: rgba(255, 255, 255, 0.75); /* Milky white opacity */
-  backdrop-filter: blur(12px);           /* Blurs whatever is directly behind the card */
-  -webkit-backdrop-filter: blur(12px);
+  /* Pure White Lens Look */
+  background: #FFFFFF !important; 
   
-  border: 1px solid rgba(255, 255, 255, 0.9); /* Crisp white edge */
+  /* Deep Shadow to lift it WAY off the rail */
   box-shadow: 
-    0 20px 50px -10px rgba(0, 0, 0, 0.2), /* Deep lift shadow */
-    0 0 0 1px rgba(255, 255, 255, 0.5) inset; /* Inner light glow */
-  
-  color: #0f172a; /* Dark, sharp text */
-  padding: 32px 40px;
+    0 20px 60px -10px rgba(50, 50, 93, 0.25), 
+    0 12px 24px -8px rgba(0, 0, 0, 0.15);
+    
+  border: 1px solid rgba(255, 255, 255, 1);
   border-radius: 24px;
+  padding: 32px;
 }
 /* Typography inside the focused card */
 #zen-reader-view .focus-paragraph {
-  font-size: 1.35rem; /* Larger text for focus */
+  font-size: 1.2rem;
   line-height: 1.7;
 }
 
@@ -108,6 +133,12 @@ html[data-project-zen="on"] body {
   border: none !important;
   margin: 3.5rem 0 !important;
   padding: 0 !important;
+}
+
+.zen-media-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 #zen-reader-view img {
@@ -133,16 +164,28 @@ html[data-project-zen="on"] body {
 }
 
 /* 8. IMAGE HANDLING */
+/* Ensure they fit nicely in the stream */
 .zen-media-wrapper img {
-  /* 🛑 STOP STRETCHING! */
-  width: auto;           /* Use natural width... */
-  max-width: 100%;       /* ...but don't overflow screen */
-  max-height: 600px;     /* Prevent vertical giants */
-  height: auto;
-  
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12); /* Add shadow to image itself */
-  object-fit: contain;   /* Keep aspect ratio perfect */
+  width: auto;
+  max-width: 100%;       /* Never wider than the card */
+  max-height: 400px;     /* Never taller than 400px (Fixes "Really Big" issue) */
+  object-fit: contain;   
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.zen-data-card {
+  width: 100%;
+  max-width: 100%;       /* Strict limit */
+  overflow-x: auto;      /* Scroll sideways if needed */
+  background: rgba(248, 250, 252, 0.5); /* Light gray tint */
+  border-radius: 16px;
+  box-sizing: border-box;
+}
+
+/* When a table/image is FOCUSED, make it pop */
+.focus-paragraph.zen-data-card {
+  background: #FFFFFF !important;
 }
 
 .zen-media-wrapper figcaption, 
@@ -165,20 +208,21 @@ html[data-project-zen="on"] body {
 }
 
 /* 8. AI BRIEFING CHIP */
+/* --- AI BRIEFING CHIP --- */
 .summary-card {
   text-align: center;
-  margin-bottom: 60px;
+  margin-bottom: 40px;
   animation: slideDown 1s ease-out;
 }
 .summary-content {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 12px 24px;
+  background: #FFFFFF;
+  padding: 10px 24px;
   border-radius: 50px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-  font-size: 0.95rem !important;
-  color: #4b5563 !important;
-  opacity: 1 !important;     /* Override default fade */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  font-size: 0.9rem !important;
+  color: #64748b !important;
+  opacity: 1 !important;
   filter: blur(0) !important;
   transform: none !important;
 }
