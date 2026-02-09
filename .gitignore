@@ -2,7 +2,7 @@
 .env
 .env.local
 .env.*.local
-src/config.json
+src/config.js
 
 # Dependencies
 node_modules/

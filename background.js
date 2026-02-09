@@ -4,33 +4,9 @@
  */
 
 // --- Gemini configuration (loaded at runtime from config.json) ---
-import { GEMINI_API_KEY } from './src/config.json';
+import { GEMINI_API_KEY } from './src/config.js';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com';
 const GEMINI_MODEL = 'gemini-2.0-flash-exp';
-
-// Load API key from config.json at service worker startup
-async function loadConfig() {
-  try {
-    const response = await fetch('config.json');
-    if (!response.ok) {
-      console.warn('[ProjectZen:Error] config.json not found. API key will not be available.');
-      return;
-    }
-    const config = await response.json();
-    GEMINI_API_KEY = config.VITE_GEMINI_API_KEY || '';
-    
-    if (GEMINI_API_KEY) {
-      console.log('[ProjectZen] ✅ API configuration loaded successfully from config.json');
-    } else {
-      console.warn('[ProjectZen:Error] VITE_GEMINI_API_KEY not found in config.json');
-    }
-  } catch (error) {
-    console.error('[ProjectZen:Error] Failed to load config.json:', error);
-  }
-}
-
-// Load config immediately on startup
-loadConfig();
 
 // Extension install/update
 chrome.runtime.onInstalled.addListener((details) => {
