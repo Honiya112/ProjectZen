@@ -10,27 +10,36 @@ import './signals/webcam.js';
 import './load-estimation/estimateLoad.js';
 import './monitoring/thresholdMonitor.js';
 
-import { renderZenMode } from './frontend/applyUI.js';
+import { renderZenMode, showZenNotification } from './frontend/applyUI.js';
 
 window.projectZenApplyUI = {
-  setZenMode: (enabled) => {
+  setZenMode: (enabled, mode = 'focus') => {
     if (enabled) {
-      console.log("✨ Activating Glass UI...");
-      // Set the attribute so CSS can lock scrolling immediately
       document.documentElement.setAttribute('data-project-zen', 'on');
-      // Render your new UI
-      renderZenMode();
+      renderZenMode(mode);
     } else {
-      console.log("↩️ Deactivating Glass UI...");
-      document.documentElement.removeAttribute('data-project-zen');
-      // Reload to perfectly restore the original site
-      location.reload();
+      if (document.documentElement.getAttribute('data-project-zen') === 'on') {
+        console.log("↩️ Deactivating Glass UI...");
+        document.documentElement.removeAttribute('data-project-zen');
+        location.reload();
+      }
     }
   },
-  
-  // Optional: If you want to show a custom prompt later
+
+  // The "Smart Prompt" Logic
   showZenPrompt: () => {
-    console.log("Zen Prompt requested (Custom UI coming soon)");
+    console.log("✨ Zen Prompt requested via Smart Notification");
+
+    // 1. Get the strategy data (Rationale from Gemini)
+    const strategy = window.projectZen ? window.projectZen.getLastAdaptationStrategy() : null;
+
+    // 2. Show the Glass Toast
+    showZenNotification(strategy, () => {
+       // 3. User clicked "Activate" -> Turn it on!
+       window.projectZenApplyUI.setZenMode(true);
+       // Sync with storage
+       chrome.storage.local.set({ zenEnabled: true });
+    });
   }
 };
 
@@ -404,16 +413,21 @@ window.projectZenApplyUI = {
   function init() {
     if (typeof chrome === 'undefined' || !chrome.runtime) return;
 
-    chrome.runtime.sendMessage({ type: 'GET_ZEN_STATE' }, function (response) {
-      if (chrome.runtime.lastError) return;
+    setZenMode(false);
 
-      if (response && response.zenEnabled) {
-        setZenMode(true);
-      }
-    });
+    chrome.storage.local.set({ zenEnabled: false });
+
+    // chrome.runtime.sendMessage({ type: 'GET_ZEN_STATE' }, function (response) {
+    //   if (chrome.runtime.lastError) return;
+
+    //   if (response && response.zenEnabled) {
+    //     setZenMode(true);
+    //   }
+    // });
 
     chrome.storage.local.get(['isTracking'], function (result) {
       if (chrome.runtime.lastError) return;
+
       const trackingEnabled = result && result.isTracking;
       console.log('[ProjectZen] Tracking:', trackingEnabled ? 'ENABLED' : 'DISABLED (auto-enabling for testing)');
       // Auto-enable tracking for testing

@@ -34,44 +34,129 @@ export function createSummaryCard(text = "Environment optimized. Focus magnifier
  * 3. THE CONTENT: Cleans and prepares text/images for the Glass View
  */
 export function createGlassBlock(originalNode) {
-  // A. IMAGE HANDLING (Protect images from being crushed)
-  // Check if the node IS an image or CONTAINS an image
+  // A. IMAGE HANDLING (Updated to Save Captions)
   const img = originalNode.tagName === 'IMG' ? originalNode : originalNode.querySelector('img');
   
-  if (img) {
+  // Only process as "Image" if it's NOT a table/infobox
+  if (img && !originalNode.tagName.includes('TABLE') && !originalNode.className.includes('infobox')) {
+     const wrapper = document.createElement('div');
+     wrapper.className = 'zen-media-wrapper';
+     
+     const newImg = document.createElement('img');
+     newImg.src = img.src;
+     wrapper.appendChild(newImg);
+
+     // 🛑 NEW: Check if the original node had a caption!
+     // If applyUI.js wrapped it in a <figure>, the caption is inside.
+     const caption = originalNode.querySelector('figcaption');
+     if (caption) {
+         const newCap = document.createElement('figcaption');
+         newCap.className = 'zen-caption';
+         newCap.innerText = caption.innerText;
+         wrapper.appendChild(newCap);
+     }
+
+     return wrapper;
+  }
+
+  // B. TABLE & BOX HANDLING
+  if (originalNode.tagName === 'TABLE' || originalNode.classList.contains('infobox') || originalNode.classList.contains('wikitable')) {
     const wrapper = document.createElement('div');
-    wrapper.className = 'zen-media-wrapper'; // New class for CSS
-    
-    const newImg = document.createElement('img');
-    newImg.src = img.src.startsWith('http') ? img.src : img.src; // Keep src safe
-    
-    // Copy caption if it exists (figcaption or nearby text)
-    const captionText = originalNode.innerText.trim();
-    if (captionText && captionText.length > 0 && captionText.length < 100) {
-        const caption = document.createElement('div');
-        caption.className = 'zen-caption';
-        caption.innerText = captionText;
-        wrapper.appendChild(newImg);
-        wrapper.appendChild(caption);
-    } else {
-        wrapper.appendChild(newImg);
-    }
+    wrapper.className = 'zen-data-card'; 
+
+    const clone = originalNode.cloneNode(true);
+    clone.removeAttribute('style');
+    clone.removeAttribute('width');
+    clone.removeAttribute('height');
+
+    wrapper.appendChild(clone);
     return wrapper;
   }
 
-  // B. TEXT HANDLING (Standard Logic)
+  // C. STANDARD TEXT HANDLING
   const clone = originalNode.cloneNode(true);
-  
-  // Cleaner function
   const cleaner = (el) => {
     el.removeAttribute('class');
     el.removeAttribute('id');
     el.removeAttribute('style');
-    if (el.tagName === 'A') el.target = "_blank";
+    if (el.tagName === 'A') {
+        el.target = "_blank"; 
+        el.style.textDecoration = "underline";
+    }
   };
-
   cleaner(clone);
   clone.querySelectorAll('*').forEach(cleaner);
   
   return clone;
+}
+
+/**
+ * 4. THE INTERVENTION: A Full-Screen "Breathing Space" Modal
+ */
+export function createSmartToast(rationale, onConfirm) { // Keeping name same to avoid refactoring import
+  const backdrop = document.createElement('div');
+  backdrop.className = 'zen-backdrop';
+  
+  backdrop.innerHTML = `
+    <div class="zen-modal-glass">
+      <div class="zen-modal-icon">🌱</div>
+      <h3 class="zen-modal-title">Take a moment...</h3>
+      <p class="zen-modal-text">${rationale || "High cognitive load detected. <br>Would you like to switch to a calmer view?"}</p>
+      
+      <div class="zen-modal-actions">
+        <button id="zen-btn-dismiss">No, thanks</button>
+        <button id="zen-btn-accept">Enter Zen Mode</button>
+      </div>
+    </div>
+  `;
+
+  // Actions
+  backdrop.querySelector('#zen-btn-accept').onclick = () => {
+    // Fade out smoothly
+    backdrop.style.opacity = '0';
+    setTimeout(() => {
+      backdrop.remove();
+      onConfirm();
+    }, 300);
+  };
+
+  backdrop.querySelector('#zen-btn-dismiss').onclick = () => {
+    backdrop.style.opacity = '0';
+    setTimeout(() => backdrop.remove(), 300);
+  };
+
+  return backdrop;
+}
+
+/**
+ * 5. THE KNOWLEDGE RAIL: For the "Confused" User (Explainer Mode)
+ */
+export function createContextSidebar() {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'zen-knowledge-rail';
+  
+  // Mock Data: In a real app, Gemini generates these based on the article
+  sidebar.innerHTML = `
+    <div class="rail-header">
+      <span class="rail-icon">🧠</span>
+      <h4>Key Concepts</h4>
+    </div>
+    
+    <div class="rail-card">
+      <strong>Domestication</strong>
+      <p>The process of adapting wild plants and animals for human use.</p>
+    </div>
+
+    <div class="rail-card">
+      <strong>Crepuscular</strong>
+      <p>Animals that are active primarily during twilight (dawn and dusk).</p>
+    </div>
+
+    <div class="rail-card">
+      <strong>Obligate Carnivore</strong>
+      <p>Animals that <i>must</i> eat meat to survive biologically.</p>
+    </div>
+  `;
+  
+  return sidebar;
 }

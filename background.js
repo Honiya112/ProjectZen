@@ -4,7 +4,7 @@
  */
 
 // --- Gemini configuration (loaded at runtime from config.json) ---
-let GEMINI_API_KEY = '';
+import { GEMINI_API_KEY } from './src/config.json';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com';
 const GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
