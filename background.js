@@ -6,7 +6,7 @@
 // --- Gemini configuration (loaded at runtime from config.json) ---
 import { GEMINI_API_KEY } from './src/config.js';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com';
-const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+const GEMINI_MODEL = 'gemini-flash-latest';
 
 // Extension install/update
 chrome.runtime.onInstalled.addListener((details) => {
@@ -326,7 +326,7 @@ OUTPUT FORMAT (STRICT JSON ONLY):
     ],
     generationConfig: {
       temperature: 0.3,
-      maxOutputTokens: 256,
+      maxOutputTokens: 1000,
     },
   };
 

@@ -1,4 +1,10 @@
-import { createZenContainer, createSummaryCard, createGlassBlock, createContextSidebar } from './components/GlassComponents.js';
+import { 
+  createZenContainer, 
+  createSummaryCard, 
+  createGlassBlock, 
+  createContextSidebar,
+  createSmartToast  // 👈 Added this!
+} from './components/GlassComponents.js';
 
 export function renderZenMode(mode = 'focus') {
   console.log(`🎨 Rendering Zen Mode using recipe: [${mode}]`);
