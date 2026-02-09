@@ -1,7 +1,7 @@
 /**
  * Project Zen - Threshold Detection & Persistence Monitor
  * Continuously calculates stress score every 2s and tracks persistence.
- * Triggers when score exceeds threshold for prolonged period (>10s).
+ * Triggers when score exceeds threshold for prolonged period.
  * Implements cooldown to prevent spam after breach detection.
  * Tracks stress trends (increasing/steady/fluctuating) for better decision-making.
  */

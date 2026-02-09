@@ -5,11 +5,16 @@
  */
 
 (function () {
-  const SCROLL_ENTROPY_WEIGHT = 0.35; // Increased: erratic scrolling is primary indicator of confusion
-  const REGRESSION_WEIGHT = 0.3; // Increased: re-reading indicates struggling to comprehend
-  const PAUSE_WEIGHT = 0.15; // Reduced: pauses don't always indicate stress
-  const LATENCY_WEIGHT = 0.1; // Reduced: less reliable signal
-  const DWELL_STUCK_WEIGHT = 0.1; // Reduced: focus time isn't always bad
+  const SCROLL_ENTROPY_WEIGHT = 0.35; // Erratic scrolling: Searching for missed info or loss of spatial context
+  const REGRESSION_WEIGHT = 0.3; // Returning to previously viewed content: Comprehension difficulty or memory overload
+  const PAUSE_WEIGHT = 0.15; // Time since last interaction of any kind: Thinking, reading, or AFK
+  const LATENCY_WEIGHT = 0.1; // Delay between hover and click: Decision uncertainty / micro-friction
+  const DWELL_STUCK_WEIGHT = 0.1; // One element dominates attention relative to others: Possible "stuck"
+
+  const MIN_DWELL_SECONDS = 15; // Below this is just reading
+  const STRONG_DWELL_SECONDS = 30; // In “stuck” territory
+  const DOMINANCE_THRESHOLD = 0.6; // Element owns 60% of dwell
+
 
   /** Normalize pause duration (e.g. 0–10s) to 0–1 */
   function normPause(ms) {
@@ -34,15 +39,41 @@
   }
 
   /** Long dwell on a single element with little scroll = possible "stuck" */
-  function getDwellStuckScore(state) {
+  function getQualifiedDwellScore(state) {
     const dwell = state.dwellByElementId || {};
-    const ids = Object.keys(dwell);
-    if (ids.length === 0) return 0;
-    const values = ids.map(function (id) { return dwell[id]; });
-    const maxDwell = Math.max.apply(null, values);
-    const total = values.reduce(function (a, b) { return a + b; }, 0);
-    if (total < 2) return 0;
-    return Math.min(1, (maxDwell / total) * 2);
+    const focusedId = state.focusedElementId;
+    if (!focusedId || !dwell[focusedId]) return 0;
+
+    const focusedDwell = dwell[focusedId];
+    const totalDwell = Object.values(dwell).reduce((a, b) => a + b, 0);
+
+    if (focusedDwell < MIN_DWELL_SECONDS) return 0;
+    if (totalDwell === 0) return 0;
+
+    // Absolute time score
+    const timeScore = Math.min(
+      1,
+      (focusedDwell - MIN_DWELL_SECONDS) /
+        (STRONG_DWELL_SECONDS - MIN_DWELL_SECONDS)
+    );
+
+    // Dominance score
+    const dominance = focusedDwell / totalDwell;
+    const dominanceScore =
+      dominance >= DOMINANCE_THRESHOLD
+        ? Math.min(1, (dominance - DOMINANCE_THRESHOLD) / 0.4)
+        : 0;
+
+    // Stagnation / hesitation signals
+    const hasInstability =
+      state.regressionCount > 0 ||
+      state.scrollEntropy > 1 ||
+      (state.lastInteractionLatencyMs || 0) > 1500;
+
+    if (!hasInstability) return 0;
+
+    // Final qualified dwell score
+    return Math.min(1, timeScore * 0.6 + dominanceScore * 0.4);
   }
 
   /**
@@ -105,7 +136,7 @@
     const entropy = normEntropy(state.scrollEntropy);
     const regressions = normRegressions(state.regressionCount || 0);
     const latency = normLatency(state.lastInteractionLatencyMs);
-    const dwellStuck = getDwellStuckScore(state);
+    const dwellStuck = getQualifiedDwellScore(state);
     
     const score =
       pause * PAUSE_WEIGHT +
@@ -126,7 +157,7 @@
         scrollEntropy: entropy,
         regressions,
         interactionLatency: latency,
-        dwellStuck,
+        qualifiedDwell: dwellStuck,
       },
       perElementStress: perElementStress, // NEW: element-level stress breakdown
     };
