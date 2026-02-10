@@ -13,30 +13,45 @@ import './monitoring/thresholdMonitor.js';
 import { renderZenMode, showZenNotification } from './frontend/applyUI.js';
 
 window.projectZenApplyUI = {
-  setZenMode: (enabled, mode = 'focus') => {
+  // 1. UPDATE SIGNATURE: Accept 'payload' as 3rd argument
+  setZenMode: (enabled, mode = 'focus', payload = null) => {
     if (enabled) {
       document.documentElement.setAttribute('data-project-zen', 'on');
-      renderZenMode(mode);
+      renderZenMode(mode, payload);
+
+      // 🛑 STOP TRACKING: Privacy on, Camera off, No more toasts.
+      if (window.projectZen && window.projectZen.setTracking) {
+        console.log("🛑 Zen Mode Active: Pausing all stress monitoring.");
+        window.projectZen.setTracking(false);
+      }
+
     } else {
       if (document.documentElement.getAttribute('data-project-zen') === 'on') {
         console.log("↩️ Deactivating Glass UI...");
         document.documentElement.removeAttribute('data-project-zen');
+        
+        // Re-enable tracking if they leave Zen Mode
+        if (window.projectZen) window.projectZen.setTracking(true);
+        
         location.reload();
       }
     }
   },
 
   // The "Smart Prompt" Logic
-  showZenPrompt: () => {
+  showZenPrompt: (strategy) => {
     console.log("✨ Zen Prompt requested via Smart Notification");
 
-    // 1. Get the strategy data (Rationale from Gemini)
-    const strategy = window.projectZen ? window.projectZen.getLastAdaptationStrategy() : null;
+    // Determine Mode
+    let zenMode = 'focus';
+    if (strategy?.mode === 'CONTENT_PRIORITIZATION') {
+      zenMode = 'explain';
+    }
 
-    // 2. Show the Glass Toast
+    // Show the Glass Toast
     showZenNotification(strategy, () => {
-       // 3. User clicked "Activate" -> Turn it on!
-       window.projectZenApplyUI.setZenMode(true);
+       // User clicked "Activate" -> Turn it on!
+       window.projectZenApplyUI.setZenMode(true, zenMode, strategy?.payload);
        // Sync with storage
        chrome.storage.local.set({ zenEnabled: true });
     });
@@ -44,10 +59,8 @@ window.projectZenApplyUI = {
 };
 
 (function () {
-  const ZEN_ATTR = 'data-project-zen';
   const DOM_CHANGE_DEBOUNCE_MS = 1000; // Wait 1s after last mutation to update snapshot
 
-  let zenActive = false;
   let isTracking = false;
   let uiSnapshot = null;
   let lastUISnapshot = null; // Track previous snapshot for element ID mapping
@@ -56,64 +69,86 @@ window.projectZenApplyUI = {
   // MutationObserver for tracking DOM changes
   let mutationObserver = null;
   let mutationDebounceTimer = null;
-  
-  // Element ID mapping for signal preservation
-  let elementIdMapping = {}; // Maps old element IDs to new element IDs when DOM changes
+
 
   console.log("🚀 Project Zen: Orchestrator Loaded");
 
-  // 1. LISTEN FOR STATE CHANGES (From Popup or AI)
+  // 1. LISTEN FOR STATE CHANGES
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'ZEN_STATE_CHANGED') {
-      // Pass the boolean directly to our main handler
-      setZenMode(message.zenEnabled);
+      window.projectZenApplyUI.setZenMode(message.zenEnabled);
+      sendResponse({ received: true });
     }
     
-    // Partner's tracking logic
-    if (message.type === 'TRACKING_STATE_CHANGED') {
+    else if (message.type === 'TRACKING_STATE_CHANGED') {
       setTracking(message.isTracking);
+      sendResponse({ received: true });
     }
     
-    if (message.type === 'SHOW_ZEN_PROMPT') {
-       if (message.adaptationStrategy) {
-         lastAdaptationData = message.adaptationStrategy;
-       }
-       showZenPrompt();
-    }
+    else if (message.type === 'SHOW_ZEN_PROMPT') {
+      console.log("📩 Received Adaptation Strategy:", message.adaptationStrategy);
+      if (message.adaptationStrategy) {
+        window.projectZenApplyUI.showZenPrompt(message.adaptationStrategy);
+      }
+      sendResponse({ success: true });
+   }
+   return false;
   });
 
-  // 2. CHECK INITIAL STATE ON LOAD
-  chrome.storage.local.get(['zenEnabled', 'isTracking'], (result) => {
-    if (result.zenEnabled) {
-      setZenMode(true);
-    }
+  // // 2. CHECK INITIAL STATE ON LOAD
+  // chrome.storage.local.get(['zenEnabled', 'isTracking'], (result) => {
+  //   if (result.zenEnabled) {
+  //     window.projectZenApplyUI.setZenMode(true);
+  //   }
     
-    // Auto-enable tracking for testing if needed
-    if (result.isTracking) {
-      setTracking(true);
-    } else {
-      // Optional: Force tracking ON for hackathon demo purposes
-      setTracking(true);
-      chrome.storage.local.set({ isTracking: true });
-    }
-  });
+  //   // Auto-enable tracking for testing if needed
+  //   if (result.isTracking) {
+  //     setTracking(true);
+  //   } else {
+  //     setTracking(true);
+  //     chrome.storage.local.set({ isTracking: true });
+  //   }
+  // });
 
-  // Trigger new Glass UI
-  function setZenMode(enabled) {
-    zenActive = enabled;
-    console.log('[ProjectZen] Setting Zen Mode to:', enabled);
+  // // Trigger new Glass UI
+  // function setZenMode(enabled) {
+  //   zenActive = enabled;
+  //   console.log('[ProjectZen] Setting Zen Mode to:', enabled);
 
-    if (window.projectZenApplyUI && window.projectZenApplyUI.setZenMode) {
-      window.projectZenApplyUI.setZenMode(enabled);
+  //   if (window.projectZenApplyUI && window.projectZenApplyUI.setZenMode) {
+  //     window.projectZenApplyUI.setZenMode(enabled);
+  //   } else {
+  //     // Fallback (Legacy)
+  //     var root = document.documentElement;
+  //     if (enabled) {
+  //       root.classList.add('zen-mode-active');
+  //       if (document.body) document.body.classList.add('zen-mode-active');
+  //     } else {
+  //       root.classList.remove('zen-mode-active');
+  //       if (document.body) document.body.classList.remove('zen-mode-active');
+  //     }
+  //   }
+  // }
+
+  function setTracking(enabled) {
+    if (isTracking === enabled) return;
+    isTracking = enabled;
+    if (!isTracking) {
+      console.log('[ProjectZen] Stopping tracking');
+      stopBehavioralTracking();
+      if (window.projectZenWebcam) window.projectZenWebcam.stop();
+      teardownMutationObserver();
+      if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.stopMonitoring) {
+        window.projectZenThresholdMonitor.stopMonitoring();
+      }
     } else {
-      // Fallback (Legacy)
-      var root = document.documentElement;
-      if (enabled) {
-        root.classList.add('zen-mode-active');
-        if (document.body) document.body.classList.add('zen-mode-active');
-      } else {
-        root.classList.remove('zen-mode-active');
-        if (document.body) document.body.classList.remove('zen-mode-active');
+      console.log('[ProjectZen] Starting tracking');
+      createInitialUISnapshot();
+      setupMutationObserver();
+      startBehavioralTracking();
+      if (window.projectZenWebcam) window.projectZenWebcam.setTracking(true);
+      if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.startMonitoring) {
+        window.projectZenThresholdMonitor.startMonitoring(onThresholdBreached);
       }
     }
   }
@@ -328,6 +363,9 @@ window.projectZenApplyUI = {
     const behavioralState = getBehavioralState();
     const focusedElementId = behavioralState && behavioralState.focusedElementId;
 
+    const rawText = document.body.innerText || "";
+    const cleanText = rawText.replace(/\s+/g, ' ').substring(0, 6000);
+
     // Capture frame immediately
     let cameraFrame = null;
     if (window.projectZenWebcam && window.projectZenWebcam.captureFrameNow) {
@@ -345,6 +383,7 @@ window.projectZenApplyUI = {
           idsInViewport: behavioralState && behavioralState.idsInViewport,
           uiSnapshot,
           cameraFrame,
+          pageText: cleanText,
           persistenceSec: loadData.persistenceSec || 0,
           trend: loadData.trend, // stress trend (increasing/steady/decreasing)
           averageStress: loadData.averageStress, // average stress over window
@@ -357,35 +396,6 @@ window.projectZenApplyUI = {
           console.log('[ProjectZen] ✅ Threshold breach + camera frame sent to background.');
         }
       });
-    }
-  }
-
-  function setTracking(enabled) {
-    if (isTracking === enabled) return;
-    isTracking = enabled;
-    if (!isTracking) {
-      console.log('[ProjectZen] Stopping tracking');
-      stopBehavioralTracking();
-      if (window.projectZenWebcam) window.projectZenWebcam.stop();
-      teardownMutationObserver();
-      // Stop threshold monitor
-      if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.stopMonitoring) {
-        window.projectZenThresholdMonitor.stopMonitoring();
-      }
-    } else {
-      console.log('[ProjectZen] Starting tracking');
-      // On initial tracking start, create snapshot with signal reset
-      createInitialUISnapshot();
-      setupMutationObserver();
-      startBehavioralTracking();
-      if (window.projectZenWebcam) window.projectZenWebcam.setTracking(true);
-      // Start threshold monitor with callback
-      if (window.projectZenThresholdMonitor && window.projectZenThresholdMonitor.startMonitoring) {
-        console.log('[ProjectZen] Starting threshold monitor');
-        window.projectZenThresholdMonitor.startMonitoring(onThresholdBreached);
-      } else {
-        console.warn('[ProjectZen] Threshold monitor not available');
-      }
     }
   }
 
@@ -403,61 +413,20 @@ window.projectZenApplyUI = {
     return uiSnapshot;
   }
 
-  /**
-   * Get cached adaptation strategy (for partner to apply)
-   */
-  function getLastAdaptationStrategy() {
-    return lastAdaptationData;
-  }
-
   function init() {
     if (typeof chrome === 'undefined' || !chrome.runtime) return;
 
-    setZenMode(false);
-
+    // 1. FORCE ZEN MODE OFF ON LOAD
+    window.projectZenApplyUI.setZenMode(false);
     chrome.storage.local.set({ zenEnabled: false });
 
-    // chrome.runtime.sendMessage({ type: 'GET_ZEN_STATE' }, function (response) {
-    //   if (chrome.runtime.lastError) return;
-
-    //   if (response && response.zenEnabled) {
-    //     setZenMode(true);
-    //   }
-    // });
-
+    // 2. Start Monitoring
     chrome.storage.local.get(['isTracking'], function (result) {
       if (chrome.runtime.lastError) return;
-
-      const trackingEnabled = result && result.isTracking;
-      console.log('[ProjectZen] Tracking:', trackingEnabled ? 'ENABLED' : 'DISABLED (auto-enabling for testing)');
-      // Auto-enable tracking for testing
       setTracking(true);
-      // Store the tracking state
       chrome.storage.local.set({ isTracking: true });
     });
   }
-
-  chrome.runtime.onMessage.addListener(function (message) {
-    if (message.type === 'ZEN_STATE_CHANGED' && typeof message.zenEnabled === 'boolean') {
-      setZenMode(message.zenEnabled);
-    }
-    if (message.type === 'TRACKING_STATE_CHANGED' && typeof message.isTracking === 'boolean') {
-      setTracking(message.isTracking);
-    }
-    if (message.type === 'SHOW_ZEN_PROMPT') {
-      // Store adaptation strategy for partner to consume
-      if (message.adaptationStrategy) {
-        lastAdaptationData = message.adaptationStrategy;
-        console.log('[ProjectZen] 📋 Adaptation strategy received:', lastAdaptationData);
-        // If partner hasn't implemented UI changes yet, show basic prompt
-        showZenPrompt();
-        // Partner can call window.projectZen.getLastAdaptationStrategy() to get the full strategy
-      } else {
-        // Legacy: simple prompt without adaptation data
-        showZenPrompt();
-      }
-    }
-  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
@@ -466,12 +435,12 @@ window.projectZenApplyUI = {
   }
 
   window.projectZen = {
-    setZenMode,
+    setZenMode: window.projectZenApplyUI.setZenMode,
     setTracking,
     showZenPrompt,
     getBehavioralState,
     getUISnapshot,
     refreshUISnapshot,
-    getLastAdaptationStrategy,
+    getLastAdaptationStrategy: () => lastAdaptationData,
   };
 })();

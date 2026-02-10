@@ -1,15 +1,15 @@
 /* ==========================================================================
-   ZEN MODE: "ADAPTIVE GLASS" THEME (Milky Glass OS)
+   ZEN MODE: "ADAPTIVE GLASS" THEME
    Features: Dynamic ambient background + Magnifying Glass focus
    ========================================================================== */
 
-/* 1. LOCK THE PAGE (But keep it visible for the background blur) */
+/* 1. LOCK THE PAGE */
 html[data-project-zen="on"] body {
   visibility: visible !important;
   overflow: hidden !important;
 }
 
-/* 2. THE STAGE (The "Extreme Blur" Layer) */
+/* 2. THE STAGE (Background) */
 #zen-reader-view {
   position: fixed;
   inset: 0;
@@ -20,12 +20,9 @@ html[data-project-zen="on"] body {
   justify-content: center;
   align-items: flex-start;
   overflow-y: auto;
-  
-  /* THIS IS THE MAGIC: Blurs the actual website behind the overlay */
   background: rgba(220, 220, 230, 0.4); 
   backdrop-filter: blur(25px) saturate(150%);
   -webkit-backdrop-filter: blur(25px) saturate(150%);
-  
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   animation: fadeIn 0.8s ease-out;
   padding-top: 5vh;
@@ -33,29 +30,23 @@ html[data-project-zen="on"] body {
   box-sizing: border-box;
 }
 
-/* 3. THE STREAM CONTAINER (Invisible Rail) */
+/* 3. THE STREAM CONTAINER (The "Base Card") */
 .zen-reader-column {
   width: 90%;
   max-width: 700px;
   min-height: 80vh;
-  
-  /* Subtle Glass Rail */
-  background: rgba(255, 255, 255, 0.25); /* More transparent */
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 40px; /* Super rounded rail */
-  
-  /* No Shadow on rail - we want it to feel 'embedded' */
-  box-shadow: inset 0 0 20px rgba(255,255,255,0.2); 
-  
   padding: 60px 40px; 
   margin-bottom: 10vh;
   box-sizing: border-box;
+
+  /* The Base Sheet */
+  background: rgba(255, 255, 255, 0.45); 
+  border-radius: 32px;
+  box-shadow: 0 40px 100px -20px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-/* 4. TYPOGRAPHY (Base State) */
+/* 4. TYPOGRAPHY */
 #zen-reader-view h1 {
   font-size: 2.5rem;
   font-weight: 800;
@@ -65,347 +56,430 @@ html[data-project-zen="on"] body {
   text-shadow: 0 2px 20px rgba(255,255,255,0.8);
 }
 
-/* 5. THE "UNFOCUSED" CARDS (The Blur) */
-/* This creates the contrast. Non-focused items are blurred and faded. */
+/* 5. TEXT CARDS (Unfocused State) */
 #zen-reader-view p, 
 #zen-reader-view li, 
 #zen-reader-view h2, 
 #zen-reader-view h3,
 #zen-reader-view blockquote,
-#zen-reader-view figure,
-#zen-reader-view .zen-data-card {
+#zen-reader-view figure {
   transition: all 0.4s ease;
-  
-  /* Ghost State */
-  opacity: 0.5;
-  transform: scale(0.98); /* Slightly smaller */
-  filter: blur(0.5px);    /* Tiny blur to push it back */
-  
+  opacity: 0.6;
+  transform: scale(0.98); 
+  filter: blur(0.5px);    
   margin-bottom: 1rem;
-  padding: 20px;
+  padding: 32px; 
   border-radius: 16px;
-  background: transparent;
-  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.3); 
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #475569;
-  
-  /* Prevent overflow */
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* 6. THE FOCUSED CARD (The "Magnifying Glass") */
+/* 6. FOCUSED TEXT CARD */
 #zen-reader-view .focus-paragraph {
-  /* High Visibility */
   opacity: 1 !important;
   filter: blur(0) !important;
   color: #0f172a !important;
-  
-  /* The "Lens" Zoom */
-  transform: scale(1.08); 
+  transform: scale(1.02); 
   z-index: 100;
-  position: relative;
-  
-  /* Pure White Lens Look */
   background: #FFFFFF !important; 
-  
-  /* Deep Shadow to lift it WAY off the rail */
   box-shadow: 
     0 20px 60px -10px rgba(50, 50, 93, 0.25), 
     0 12px 24px -8px rgba(0, 0, 0, 0.15);
-    
-  border: 1px solid rgba(255, 255, 255, 1);
   border-radius: 24px;
   padding: 32px;
 }
-/* Typography inside the focused card */
-#zen-reader-view .focus-paragraph {
-  font-size: 1.2rem;
-  line-height: 1.7;
+
+#zen-reader-view .focus-paragraph li {
+  opacity: 1 !important;
+  filter: blur(0) !important;
+  color: #0f172a !important;
 }
 
 /* 7. IMAGES */
-#zen-reader-view figure,
-#zen-reader-view .thumb,
-#zen-reader-view .thumbinner {
-  display: block !important;
-  width: 100% !important;
-  background: transparent !important;
-  border: none !important;
-  margin: 3.5rem 0 !important;
-  padding: 0 !important;
-}
-
-.zen-media-wrapper {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-}
-
 #zen-reader-view img {
   display: block;
   max-width: 100%;
   height: auto;
-  border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
-  margin: 0 auto 1.5rem;
-}
-
-#zen-reader-view figcaption,
-#zen-reader-view .thumbcaption {
-  text-align: center !important;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem !important;
-  color: #737373 !important;
-  font-style: normal !important;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: 0 !important;
-  border: none !important;
-}
-
-/* 8. IMAGE HANDLING */
-/* Ensure they fit nicely in the stream */
-.zen-media-wrapper img {
   border-radius: 12px;
-  width: auto;
-  max-width: 100%;       /* Never wider than the card */
-  max-height: 400px;     /* Never taller than 400px (Fixes "Really Big" issue) */
-  object-fit: contain;   
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin: 0 auto 1rem; /* Center the image */
 }
 
-.zen-data-card {
-  width: 100%;
-  max-width: 100%;       /* Strict limit */
-  overflow-x: auto;      /* Scroll sideways if needed */
-  background: rgba(248, 250, 252, 0.5); /* Light gray tint */
-  border-radius: 16px;
-  box-sizing: border-box;
-}
-
-/* When a table/image is FOCUSED, make it pop */
-.focus-paragraph.zen-data-card {
-  background: #FFFFFF !important;
-}
-
-.zen-media-wrapper figcaption, 
-.zen-caption {
-  margin-top: 12px;
-  font-family: system-ui, sans-serif;
+#zen-reader-view figcaption {
+  text-align: center !important;
   font-size: 0.9rem;
   color: #64748b;
-  text-align: center;
-  max-width: 80%;
-  background: transparent;
-  border: none;
+  margin-top: 0.5rem;
+  display: block;
+  width: 100%;
 }
 
-/* Ensure the focus effect doesn't break images */
-.focus-paragraph.zen-media-wrapper {
-  transform: scale(1.02); /* Slight pop for images */
+/* ==========================================================================
+   8. DATA TABLES (THE "NAKED" LOOK)
+   ========================================================================== */
+
+.zen-data-card {
   background: transparent !important;
-  border: 2px solid var(--zen-bg-1, #a5b4fc);
-}
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 2rem 0 !important;
+  
+  /* CENTER Everything */
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
 
-/* 8. AI BRIEFING CHIP */
-/* --- AI BRIEFING CHIP --- */
-.summary-card {
-  text-align: center;
-  margin-bottom: 40px;
-  animation: slideDown 1s ease-out;
-}
-.summary-content {
-  display: inline-block;
-  background: #FFFFFF;
-  padding: 10px 24px;
-  border-radius: 50px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-  font-size: 0.9rem !important;
-  color: #64748b !important;
   opacity: 1 !important;
-  filter: blur(0) !important;
+  filter: none !important;
   transform: none !important;
 }
 
-/* 1. The Blurry Backdrop (Immediate relief) */
+/* GENERIC TABLE STYLING */
+.zen-data-card table {
+  width: auto !important;
+  max-width: 100% !important;
+  border-collapse: collapse;
+  margin: 0 auto !important;
+  background: rgba(255, 255, 255, 0.5); 
+  border-radius: 12px;
+}
+
+.zen-data-card td, 
+.zen-data-card th {
+  padding: 8px 12px;
+  vertical-align: top;
+  text-align: left;
+  min-width: 100px;
+}
+
+/* ==========================================================================
+   9. WIKI CLADOGRAMS (THE "SQUASHED TREE" FIX)
+   ========================================================================== */
+
+.zen-data-card table.clade {
+  background: transparent !important; 
+  width: auto !important;
+  height: auto !important;
+  border-spacing: 0 !important;
+  border-collapse: collapse !important;
+}
+
+.zen-data-card table.clade tr {
+  height: auto !important;
+}
+
+.zen-data-card table.clade td,
+.zen-data-card table.clade th {
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 0 !important; 
+  height: 1px !important;    
+  
+  width: auto !important;
+  min-width: 0 !important;
+  
+  border: none !important;
+  white-space: nowrap !important;
+  
+  /* ✅ FIX: SMALLER FONT (11px) matches Wikipedia Original */
+  font-size: 11px !important; 
+  vertical-align: middle !important;
+}
+
+/* Re-draw the lines */
+.zen-data-card table.clade td {
+  border-left: 1px solid #000 !important;
+  border-bottom: 1px solid #000 !important;
+}
+
+/* Fix the labels */
+.zen-data-card table.clade td.clade-label,
+.zen-data-card table.clade td.clade-slabel {
+  border: none !important;
+  padding: 2px 0 2px 5px !important; 
+  line-height: 1.1 !important;       
+  height: auto !important;
+}
+
+/* ==========================================================================
+   10. SIDEBAR (Explain Mode)
+   ========================================================================== */
+  .zen-knowledge-rail {
+    position: fixed;
+  right: 40px;
+  
+  /* ✅ FIX: Position it safely within the viewport */
+  top: 10vh; 
+  bottom: 10vh; /* This ensures it never goes off the bottom */
+  
+  width: 300px;
+  height: auto; /* Only take space needed... */
+  max-height: 80vh;    /* ...but never exceed 80% of screen */
+  
+  /* Scroll handling */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Hide outer scroll */
+  
+  background: rgba(255, 255, 255, 0.85); /* Increased opacity for reading */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  border-radius: 24px;
+  padding: 24px;
+  z-index: 2147483650 !important; 
+  
+  animation: slideInRight 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  
+  .rail-header {
+    color: #d97706;
+    font-weight: 800;
+    font-size: 1.1rem;
+    margin-top: 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid rgba(217, 119, 6, 0.1);
+    padding-bottom: 8px;
+    flex-shrink: 0; /* Header never shrinks */
+  }
+  
+  /* Container for the cards that scrolls if needed */
+  .rail-content-wrapper {
+    overflow-y: auto;
+    flex-grow: 1;
+    padding-right: 8px; /* Space for scrollbar */
+  }
+  
+  /* Style the cards specifically */
+  .rail-card {
+    background: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #334155;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.02);
+  }
+
+  /* Special style for the new Summary box */
+.rail-summary {
+  background: #fffbeb; /* Very light amber bg */
+  color: #451a03;
+}
+  
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+/* ==========================================================================
+   11. SMART TOAST (The Intervention Modal) - Breathing Green Edition
+   ========================================================================== */
+
+/* The dark background behind the modal (Full Screen) */
 .zen-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(255, 255, 255, 0.3); /* Slight white tint */
-  backdrop-filter: blur(8px);             /* The "Focus" blur */
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 2147483647;                    /* Top of everything */
+  z-index: 2147483660; 
+  
+  /* ✅ FIX 1: CENTER POSITIONING */
   display: flex;
+  align-items: center; /* Changed from flex-end to center */
   justify-content: center;
-  align-items: center;
-  opacity: 0;
-  animation: fadeIn 0.5s ease-out forwards;
+  padding-bottom: 0; /* Removed bottom padding */
+  
+  background: rgba(0, 0, 0, 0.3); /* Slightly darker dim for contrast */
+  backdrop-filter: blur(6px);
+  animation: fadeIn 0.3s ease-out;
 }
 
-/* 2. The Pulsing Green Glass Card */
+/* The Breathing Glass Card */
 .zen-modal-glass {
-  background: rgba(236, 253, 245, 0.85);  /* Soft Mint Green */
-  border: 1px solid rgba(167, 243, 208, 0.6);
-  box-shadow: 0 20px 60px rgba(16, 185, 129, 0.15); /* Green Glow */
-  border-radius: 24px;
-  padding: 40px;
-  width: 400px;
+  background: rgba(255, 255, 255, 0.95); /* Slightly more opaque */
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  
+  /* ✅ FIX 2: SOFT GREEN BORDER BASE */
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  
+  width: 90%;
+  max-width: 420px;
+  padding: 32px;
+  border-radius: 28px;
   text-align: center;
-  transform: scale(0.9);
-  animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards, 
-             zenPulse 4s infinite ease-in-out; /* The Pulse */
+  
+  /* ✅ FIX 3: APPLY BREATHING ANIMATION */
+  /* This replaces static box-shadow */
+  animation: breathingGlow 4s ease-in-out infinite, slideUpFade 0.5s ease-out;
 }
 
-/* 3. Typography */
-.zen-modal-icon { font-size: 48px; margin-bottom: 16px; display: block; }
-.zen-modal-title { 
-  margin: 0 0 12px 0; 
-  font-size: 22px; 
-  font-weight: 700; 
-  color: #064e3b; /* Dark Green */ 
-}
-.zen-modal-text { 
-  margin: 0 0 32px 0; 
-  font-size: 16px; 
-  line-height: 1.5; 
-  color: #065f46; /* Medium Green */ 
+/* Typography & Icons */
+.zen-modal-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  display: block;
+  /* Use the same breathing color for the icon filter */
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+  animation: floatIcon 3s ease-in-out infinite;
 }
 
-/* 4. Buttons */
+.zen-modal-title {
+  margin: 0 0 12px 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #065f46; /* Dark green text */
+}
+
+.zen-modal-text {
+  margin: 0 0 32px 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #334155;
+}
+
+/* Button Layout */
 .zen-modal-actions {
   display: flex;
   gap: 16px;
   justify-content: center;
 }
 
-#zen-btn-accept {
-  background: #10b981; /* Emerald 500 */
+/* "Enter Zen Mode" Button (Enhanced Green) */
+button#zen-btn-accept {
+  background: linear-gradient(135deg, #10b981, #059669); /* Gradient Green */
   color: white;
   border: none;
-  padding: 12px 28px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 16px 32px;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  transition: transform 0.2s;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.5);
+  transition: all 0.2s ease;
 }
-#zen-btn-accept:hover { transform: translateY(-2px); background: #059669; }
 
-#zen-btn-dismiss {
+button#zen-btn-accept:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 35px -5px rgba(16, 185, 129, 0.7);
+}
+
+/* "No Thanks" Button */
+button#zen-btn-dismiss {
   background: transparent;
   color: #64748b;
-  border: 2px solid rgba(0,0,0,0.05);
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-size: 15px;
+  border: 2px solid rgba(100, 116, 139, 0.2);
+  padding: 14px 24px;
+  border-radius: 16px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-}
-#zen-btn-dismiss:hover { background: rgba(0,0,0,0.02); color: #334155; }
-
-/* 5. Animations */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@keyframes scaleIn { to { transform: scale(1); } }
-@keyframes zenPulse {
-  0% { box-shadow: 0 20px 60px rgba(16, 185, 129, 0.15); }
-  50% { box-shadow: 0 20px 80px rgba(16, 185, 129, 0.35); transform: scale(1.02); }
-  100% { box-shadow: 0 20px 60px rgba(16, 185, 129, 0.15); transform: scale(1); }
+  transition: all 0.2s;
 }
 
-@keyframes floatLight { 0% { transform: translate(0,0); } 100% { transform: translate(10%, 10%); } }
-@keyframes floatDeep { 0% { transform: translate(0,0); } 100% { transform: translate(-10%, 5%); } }
-@keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+button#zen-btn-dismiss:hover {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.4);
+  color: #0f172a;
+}
 
-/* --- Mode: "Confusion" (The Knowledge Rail) --- */
+/* --- ANIMATIONS --- */
+
+/* ✅ NEW: The Soft Green Breathing Effect */
+@keyframes breathingGlow {
+  0%, 100% {
+    /* Soft inner and outer glow */
+    box-shadow: 
+      0 20px 50px -10px rgba(16, 185, 129, 0.3), 
+      0 0 20px 5px rgba(16, 185, 129, 0.2) inset;
+    transform: scale(1);
+  }
+  50% {
+    /* Brighter, wider glow + subtle inhale scale */
+    box-shadow: 
+      0 30px 70px -15px rgba(16, 185, 129, 0.5), 
+      0 0 40px 10px rgba(16, 185, 129, 0.3) inset;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes floatIcon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ==========================================================================
+   12. EXPLAIN MODE LAYOUT FIX (Prevent Overlap)
+   ========================================================================== */
+
+/* When Explain Mode is active (.zen-mode-explain class on overlay) */
 .zen-mode-explain .zen-reader-column {
-  max-width: 900px; /* Wider to fit sidebar */
-  display: grid;
-  grid-template-columns: 1fr 280px; /* Content | Sidebar */
-  gap: 40px;
-  align-items: start;
+  margin-left: 5% !important; 
+  margin-right: 360px !important; /* 280px sidebar + 80px gap */
+  
+  /* Reset auto centering so it doesn't fight the margin */
+  max-width: 800px; /* Allow it to be slightly wider since we have room */
+  width: auto;
 }
 
-/* Move the Title and Summary to span both columns */
-.zen-mode-explain .zen-reader-column > h1,
-.zen-mode-explain .zen-reader-column > .summary-card {
-  grid-column: 1 / -1;
-}
-
-/* The Sidebar Style */
+/* Ensure the sidebar stays on top just in case */
 .zen-knowledge-rail {
-  position: sticky;
-  top: 100px;
-  background: rgba(255, 255, 255, 0.4);
-  border-left: 2px solid rgba(255, 255, 255, 0.3);
-  padding-left: 20px;
-  animation: slideInRight 0.6s ease-out;
+  z-index: 2147483660 !important;
 }
 
-.rail-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  color: #d97706; /* Warm Amber for "Context" */
-}
-
-.rail-card {
-  background: rgba(255, 255, 255, 0.6);
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  font-size: 0.85rem;
-  color: #4b5563;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  transition: transform 0.2s;
-}
-.rail-card:hover { transform: translateX(-5px); background: white; }
-.rail-card strong { display: block; color: #1f2937; margin-bottom: 4px; }
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-/* --- Data Cards (Tables, Infoboxes) --- */
-.zen-data-card {
-  width: 100%;
-  margin: 2rem 0;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.4); /* Glassy background */
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  overflow-x: auto; /* Allow horizontal scroll for big tables */
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Force Table Styling to be Zen */
-.zen-data-card table {
-  width: 100%;
-  table-layout: auto; /* Let the browser calculate widths based on content */
-}
-
-.zen-data-card td,
-.zen-data-card th {
-  /* Force text to wrap normally, never crush into vertical lines */
-  white-space: normal !important;
-  word-break: break-word; /* Prevent long words from overflowing */
-  min-width: 60px; /* Ensure cells have at least some breathing room */
-}
-
-.zen-data-card tr:last-child td {
-  border-bottom: none;
-}
-
-/* Make images inside tables smaller */
-.zen-data-card img {
-  max-width: 100px;
-  height: auto;
-  border-radius: 4px;
-}
+/* ==========================================================================
+   13. THE AI BRIEFING CARD (Focus & Explain Mode)
+   ========================================================================== */
+   .summary-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 
+      0 10px 30px -5px rgba(0,0,0,0.05),
+      0 0 0 1px rgba(255,255,255,0.4) inset;
+      
+    /* ✅ FIX: Adaptive shape (Pill for short text, Box for long summaries) */
+    border-radius: 24px; 
+    padding: 16px 32px;
+    
+    margin: 0 auto 40px auto; 
+    width: fit-content;
+    max-width: 700px; /* Restrict width so lines aren't too long to read */
+    
+    display: block; /* Allows text to wrap */
+    text-align: center;
+  }
+  
+  .summary-content {
+    margin: 0;
+    padding: 0;
+    font-size: 1.05rem; /* Slightly larger for readability */
+    line-height: 1.6;   /* Breathing room for 5 sentences */
+    color: #475569;
+    font-weight: 500;
+  }
+  
+  .summary-content b {
+    color: #d97706;
+    font-weight: 800;
+    display: block;      /* Put "✨ AI Briefing" on its own line */
+    margin-bottom: 8px;  /* Space between label and summary */
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+  }

@@ -8,7 +8,7 @@
 
 (function () {
   const CHECK_INTERVAL_MS = 2000; // Every 2 seconds
-  const STRESS_THRESHOLD = 0.3; // Normalized stress score (0–1) — lowered to 30%
+  const STRESS_THRESHOLD = 0.25; // Normalized stress score (0–1) — lowered to 30%
   const PERSISTENCE_CHECKS_REQUIRED = 4; // 4 checks × 2s = ~8 seconds of sustained high stress
   const COOLDOWN_MS = 300000; // 5 minutes cooldown between analyses
   const STRESS_HISTORY_SIZE = 20; // Track last 40 seconds of scores

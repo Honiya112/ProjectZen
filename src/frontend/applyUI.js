@@ -3,10 +3,10 @@ import {
   createSummaryCard, 
   createGlassBlock, 
   createContextSidebar,
-  createSmartToast  // 👈 Added this!
+  createSmartToast  
 } from './components/GlassComponents.js';
 
-export function renderZenMode(mode = 'focus') {
+export function renderZenMode(mode = 'focus', aiContent = null) {
   console.log(`🎨 Rendering Zen Mode using recipe: [${mode}]`);
 
   // 1. COLORS & ROOT
@@ -23,8 +23,16 @@ export function renderZenMode(mode = 'focus') {
   if (existing) existing.remove();
   const { overlay, column } = createZenContainer(primaryColor);
   
-  const summaryText = mode === 'explain' ? "Contextual definitions active. Complexity reduced." : "Environment optimized. Focus magnifier active.";
+  let summaryText = mode === 'explain' 
+  ? "Contextual definitions active. Complexity reduced." 
+  : "Environment optimized. Focus magnifier active.";
+
+  if (aiContent) {
+    summaryText = aiContent.payload?.summary || aiContent.payload?.title || "AI Analysis Complete.";
+  }
+
   column.appendChild(createSummaryCard(summaryText));
+
   if (mode === 'explain') overlay.classList.add('zen-mode-explain');
 
   const title = document.createElement('h1');
@@ -50,21 +58,27 @@ export function renderZenMode(mode = 'focus') {
   const acceptedNodes = new Set();
 
   candidates.forEach((node, index) => {
-    // --- A. VISIBILITY & BLACKLIST ---
-    if (!node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return;
+  // --- A. THE BOUNCER (Structural Filter) ---
+  // 1. Kick out the Site Header, Nav, and Footer immediately
+  if (node.closest('header, nav, footer, .header, .navbar, .nav, .site-header, .site-footer, .footer')) return;
+  
+  // 2. Kick out Search Bars and Logos
+  const classStr = (node.className || '').toLowerCase();
+  const idStr = (node.id || '').toLowerCase();
+  
+  if (classStr.includes('search') || idStr.includes('search') || 
+      classStr.includes('logo') || idStr.includes('logo') ||
+      classStr.includes('menu') || classStr.includes('breadcrumb')) return;
 
-    const classStr = (node.className || '').toLowerCase();
-    const idStr = (node.id || '').toLowerCase();
-    const textStr = (node.innerText || '').toLowerCase();
-    
-    // Explicitly kill Table of Contents (TOC) and Menus
-    if (classStr.includes('toc') || idStr.includes('toc') || 
-        classStr.includes('nav') || classStr.includes('menu') || 
-        classStr.includes('sidebar') || textStr.startsWith('contents') || textStr === 'sections') return;
+  // --- B. VISIBILITY CHECK ---
+  if (!node.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return;
 
-    // Social & Junk Filter
-    const badWords = ['share', 'social', 'facebook', 'twitter', 'linkedin', 'email', 'subscribe', 'advertisement'];
-    if (badWords.some(w => classStr.includes(w))) return;
+  const textStr = (node.innerText || '').toLowerCase();
+  
+  // (Keep your existing Social & Junk Filter here...)
+  const badWords = ['share', 'social', 'facebook', 'twitter', 'linkedin', 'email', 'subscribe', 'advertisement', 'login', 'sign up'];
+  if (badWords.some(w => classStr.includes(w))) return;
+
     if (textStr.length < 200 && badWords.some(w => textStr.includes(w))) return;
     
     // Wikipedia Icons Filter
@@ -101,7 +115,10 @@ export function renderZenMode(mode = 'focus') {
             parent = parent.parentElement;
         }
         acceptedNodes.add(node);
-        contentWrapper.appendChild(createGlassBlock(node));
+        const tableCard = createGlassBlock(node);
+        tableCard.classList.add('zen-data-card'); 
+        
+        contentWrapper.appendChild(tableCard);
         return;
     }
 
@@ -148,8 +165,21 @@ export function renderZenMode(mode = 'focus') {
   });
 
   column.appendChild(contentWrapper);
-  if (mode === 'explain') column.appendChild(createContextSidebar());
+
   document.body.appendChild(overlay);
+
+  const existingSidebar = document.querySelector('.zen-knowledge-rail');
+  if (existingSidebar) existingSidebar.remove();
+
+  if (mode === 'explain') {
+    const safeData = aiContent || {
+      title: "Context Analysis",
+      takeaways: ["Analyzing content...", "Identifying key concepts...", "Simplifying complexity..."],
+      concepts: []
+    };
+    // Append to body so it sits ON TOP of the overlay
+    document.body.appendChild(createContextSidebar(safeData));
+  } 
 
   // 4. OBSERVER
   const observer = new IntersectionObserver((entries) => {
@@ -166,16 +196,15 @@ export function renderZenMode(mode = 'focus') {
       threshold: 0.1 
   });
   
-  // 🛑 FINAL FIX: Added 'ul' and 'ol' to this list so the whole card glows!
   const targetSelectors = [
       '.zen-content-stream > p', 
       '.zen-content-stream > h2', 
       '.zen-content-stream > h3', 
       '.zen-content-stream > blockquote', 
       '.zen-content-stream > figure',
-      '.zen-content-stream > ul',  // 👈 Added Bullet Lists
-      '.zen-content-stream > ol',  // 👈 Added Numbered Lists
-      '.zen-data-card'             // 👈 Added Tables/Infoboxes
+      '.zen-content-stream > ul', 
+      '.zen-content-stream > ol',  
+      '.zen-data-card'             
   ];
 
   column.querySelectorAll(targetSelectors.join(', ')).forEach(el => observer.observe(el));
@@ -185,10 +214,17 @@ export function renderZenMode(mode = 'focus') {
  * Shows the "Smart Prompt" toast
  */
 export function showZenNotification(strategy, onConfirm) {
-  // Prevent duplicates
-  if (document.querySelector('.zen-toast-container')) return;
+  const existingToast = document.querySelector('.zen-toast-container');
+  if (existingToast) existingToast.remove();
 
+  console.log("🔔 Creating Smart Toast for strategy:", strategy);
   const rationale = strategy?.rationale || "High cognitive load detected. Simplify interface?";
-  const toast = createSmartToast(rationale, onConfirm);
+  
+  // Ensure the confirm callback happens
+  const toast = createSmartToast(rationale, () => {
+    console.log("✅ User confirmed toast. Activating Zen Mode.");
+    if (onConfirm) onConfirm();
+  });
+  
   document.body.appendChild(toast);
 }

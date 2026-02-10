@@ -162,6 +162,7 @@ async function handleThresholdBreach(breachData, tabId) {
             cooldown: result.cooldown_sec || 300,
             rationale: result.rationale,
             confidence: result.confidence,
+            payload: result.payload,
           },
         },
         () => {
@@ -248,6 +249,10 @@ async function analyzeWithEnrichedContext(base64Image, breachData) {
     `${formatUISnapshot(breachData.uiSnapshot)}` : 
     'No UI elements tracked.';
 
+  const pageContent = breachData.pageText 
+    ? breachData.pageText 
+    : "No text content available.";
+
   // Format per-element stress contributions
   const elementStressInfo = breachData.perElementStress ? 
     `Elements contributing most to stress:\n${formatPerElementStress(breachData.perElementStress, breachData.uiSnapshot)}` :
@@ -277,6 +282,7 @@ ${elementStressInfo}
 FOCUSED UI CONTEXT:
 - Focused Element ID: ${breachData.focusedElementId || 'unknown'}
 - Elements in Viewport: ${(breachData.idsInViewport || []).length}
+- Page Text: "${(breachData.pageText || '').substring(0, 5000)}..."
 
 UI STRUCTURE SNAPSHOT:
 ${uiStructure}
@@ -290,6 +296,8 @@ TASK:
 2. If yes, choose an adaptation STRATEGY (not implementation).
 3. Specify targets abstractly (by element role or ID).
 4. Provide a short rationale grounded in the behavioral signals.
+5. IF mode is CONTENT_PRIORITIZATION, generate a 'payload' with 3 key takeaways and 2 definitions from the text.
+6. Create a "summary" of exactly 5 sentences covering the main points.
 
 OUTPUT FORMAT (STRICT JSON ONLY):
 {
@@ -301,7 +309,13 @@ OUTPUT FORMAT (STRICT JSON ONLY):
   ],
   "duration_sec": number,
   "cooldown_sec": number,
-  "rationale": "One concise sentence explaining the decision"
+  "rationale": "One concise sentence explaining the decision",
+  "payload": {
+    "title": "Topic Summary",
+    "summary": "Write 5 sentences summarizing the content here.",
+    "takeaways": ["Point 1", "Point 2", "Point 3"], 
+    "concepts": [{"term": "Word", "definition": "Def"}] 
+  }
 }`;
 
   const url = `${GEMINI_ENDPOINT}/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
@@ -326,7 +340,8 @@ OUTPUT FORMAT (STRICT JSON ONLY):
     ],
     generationConfig: {
       temperature: 0.3,
-      maxOutputTokens: 1000,
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json"
     },
   };
 

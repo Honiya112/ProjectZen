@@ -131,32 +131,50 @@ export function createSmartToast(rationale, onConfirm) { // Keeping name same to
 /**
  * 5. THE KNOWLEDGE RAIL: For the "Confused" User (Explainer Mode)
  */
-export function createContextSidebar() {
+export function createContextSidebar(data) {
   const sidebar = document.createElement('div');
   sidebar.className = 'zen-knowledge-rail';
   
-  // Mock Data: In a real app, Gemini generates these based on the article
-  sidebar.innerHTML = `
-    <div class="rail-header">
-      <span class="rail-icon">🧠</span>
-      <h4>Key Concepts</h4>
-    </div>
-    
-    <div class="rail-card">
-      <strong>Domestication</strong>
-      <p>The process of adapting wild plants and animals for human use.</p>
-    </div>
+  // 1. Title (Fixed at top)
+  const h3 = document.createElement('h3');
+  h3.className = 'rail-header';
+  h3.innerText = data.title || "Context Analysis";
+  sidebar.appendChild(h3);
 
-    <div class="rail-card">
-      <strong>Crepuscular</strong>
-      <p>Animals that are active primarily during twilight (dawn and dusk).</p>
-    </div>
+  // 2. Scrollable Wrapper (Prevents Cutoff)
+  const wrapper = document.createElement('div');
+  wrapper.className = 'rail-content-wrapper';
 
-    <div class="rail-card">
-      <strong>Obligate Carnivore</strong>
-      <p>Animals that <i>must</i> eat meat to survive biologically.</p>
-    </div>
-  `;
-  
+  // --- 🛑 NEW: THE 5-SENTENCE SUMMARY ---
+  if (data.summary) {
+    const summaryBox = document.createElement('div');
+    summaryBox.className = 'rail-card rail-summary';
+    // Make it look distinct (italic/bold)
+    summaryBox.innerHTML = `<em>${data.summary}</em>`;
+    summaryBox.style.borderLeft = "3px solid #d97706"; // Orange accent
+    wrapper.appendChild(summaryBox);
+  }
+
+  // 3. The Takeaways (Bullet Points)
+  if (data.takeaways) {
+    data.takeaways.forEach(point => {
+      const card = document.createElement('div');
+      card.className = 'rail-card';
+      card.innerText = "• " + point;
+      wrapper.appendChild(card);
+    });
+  }
+
+  // 4. The Definitions
+  if (data.concepts) {
+    data.concepts.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'rail-card';
+      card.innerHTML = `<strong>${item.term}:</strong> ${item.definition}`;
+      wrapper.appendChild(card);
+    });
+  }
+
+  sidebar.appendChild(wrapper);
   return sidebar;
 }
